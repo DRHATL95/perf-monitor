@@ -61,6 +61,22 @@ public sealed class TrayIconHost : IDisposable
         if (_vm.CpuTempAvailable) _cpuTempIcon.ForceCreate();
     }
 
+    /// <summary>
+    /// Shows a Windows system toast/balloon anchored to the CPU tray icon.
+    /// Falls silent if the shell rejects the notification (no icon yet, etc.).
+    /// </summary>
+    public void ShowNotification(string title, string message)
+    {
+        try
+        {
+            _cpuIcon.ShowNotification(
+                title: title,
+                message: message,
+                icon: H.NotifyIcon.Core.NotificationIcon.Info);
+        }
+        catch { /* best-effort — never let UX noise crash the app */ }
+    }
+
     private void OnVmChanged(object? s, PropertyChangedEventArgs e)
     {
         System.Windows.Application.Current.Dispatcher.Invoke(() =>

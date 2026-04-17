@@ -75,6 +75,7 @@ public partial class App : Application
                     new PerfMonitor.Windowing.Windows.MainWidgetWindow(
                         sp.GetRequiredService<MainViewModel>()));
                 services.AddSingleton<PerfMonitor.Tray.TrayIconHost>();
+                services.AddSingleton<PerfMonitor.Windowing.INotificationService, Services.TrayNotificationService>();
                 services.AddHostedService<Services.MetricsSampler>();
                 services.AddHostedService<Services.PerfBudgetCheck>();
                 services.AddTransient<PerfMonitor.Windowing.ViewModels.SettingsViewModel>();
