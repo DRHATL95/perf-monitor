@@ -106,7 +106,9 @@ public sealed class TrayIconHost : IDisposable
     private void SetIcon(TaskbarIcon icon, int value, Color accent)
     {
         using var bmp = _renderer.RenderLoadBitmap(value, accent);
+        var previous = icon.Icon;
         icon.Icon = _renderer.ToIcon(bmp);
+        previous?.Dispose();
     }
 
     private void UpdateAll()

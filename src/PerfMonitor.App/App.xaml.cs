@@ -15,6 +15,8 @@ namespace PerfMonitor.App;
 public partial class App : Application
 {
     private IHost? _host;
+    private PerfMonitor.Windowing.Behaviors.FullscreenDetector? _fullscreenDetector;
+    private PerfMonitor.Windowing.Behaviors.HotkeyService? _hotkeyService;
 
     public IServiceProvider Services => _host!.Services;
 
@@ -110,15 +112,17 @@ public partial class App : Application
         if (Services.GetRequiredService<ISettingsStore>().Load().Behavior.AutoHideOnFullscreen
             && widget is Window w)
         {
-            _ = new PerfMonitor.Windowing.Behaviors.FullscreenDetector(w);
+            _fullscreenDetector = new PerfMonitor.Windowing.Behaviors.FullscreenDetector(w);
         }
 
         if (widget is Window hw)
-            _ = new PerfMonitor.Windowing.Behaviors.HotkeyService(hw, ModifierKeys.Control | ModifierKeys.Alt, Key.M);
+            _hotkeyService = new PerfMonitor.Windowing.Behaviors.HotkeyService(hw, ModifierKeys.Control | ModifierKeys.Alt, Key.M);
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _fullscreenDetector?.Dispose();
+        _hotkeyService?.Dispose();
         _host?.StopAsync().GetAwaiter().GetResult();
         _host?.Dispose();
         base.OnExit(e);
