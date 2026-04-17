@@ -1,0 +1,32 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet restore
+      - run: dotnet build --no-restore --configuration Release
+      - run: dotnet test --no-build --configuration Release --verbosity normal
+      - name: Publish
+        if: github.event_name == 'push'
+        run: >
+          dotnet publish src/PerfMonitor.App
+          -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push'
+        with:
+          name: PerfMonitor-win-x64
+          path: publish/PerfMonitor.exe
