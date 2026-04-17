@@ -70,6 +70,7 @@ public partial class App : Application
                 });
                 services.AddSingleton<PerfMonitor.Tray.TrayIconHost>();
                 services.AddHostedService<Services.MetricsSampler>();
+                services.AddHostedService<Services.PerfBudgetCheck>();
                 services.AddTransient<PerfMonitor.Windowing.ViewModels.SettingsViewModel>();
                 services.AddTransient<PerfMonitor.Windowing.Windows.SettingsWindow>();
             })
