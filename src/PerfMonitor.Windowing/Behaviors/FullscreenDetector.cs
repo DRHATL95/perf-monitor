@@ -40,8 +40,12 @@ public sealed class FullscreenDetector : IDisposable
 
     private void Fade(double to)
     {
+        // Animate the inner content's opacity rather than the Window's — animating
+        // Window.Opacity with AllowsTransparency=True can flash the layered window's
+        // backdrop (appears white on light themes) mid-transition.
+        var target = _target.Content as UIElement ?? (UIElement)_target;
         var anim = new DoubleAnimation { To = to, Duration = TimeSpan.FromMilliseconds(250) };
-        _target.BeginAnimation(UIElement.OpacityProperty, anim);
+        target.BeginAnimation(UIElement.OpacityProperty, anim);
     }
 
     public void Dispose() => _timer.Stop();

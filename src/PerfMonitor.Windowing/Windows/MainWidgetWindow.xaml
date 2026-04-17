@@ -10,7 +10,8 @@
         Topmost="True"
         ShowInTaskbar="False"
         SizeToContent="WidthAndHeight">
-    <Border Background="#A61E1E23"
+    <Border x:Name="RootBorder"
+            Background="#A61E1E23"
             BorderBrush="#14FFFFFF"
             BorderThickness="1"
             CornerRadius="18"

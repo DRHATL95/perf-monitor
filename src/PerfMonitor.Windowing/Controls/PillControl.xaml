@@ -8,7 +8,7 @@
     <Border Background="#14FFFFFF"
             CornerRadius="12"
             Padding="10,8"
-            MinWidth="56">
+            MinWidth="72">
         <StackPanel>
             <TextBlock Text="{Binding Label, RelativeSource={RelativeSource AncestorType=c:PillControl}}"
                        FontSize="9"

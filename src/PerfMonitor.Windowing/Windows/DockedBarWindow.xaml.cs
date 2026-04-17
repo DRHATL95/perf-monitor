@@ -32,9 +32,9 @@ public partial class DockedBarWindow : Window, IWidgetWindow
     private void OnVmChanged(object? s, PropertyChangedEventArgs e) =>
         Dispatcher.Invoke(() =>
         {
-            CpuPill.Value = $"{_vm.CpuLoadPercent:F0}";
-            RamPill.Value = _vm.RamTotalGb > 0 ? $"{(_vm.RamUsedGb / _vm.RamTotalGb * 100):F0}" : "—";
-            GpuPill.Value = $"{_vm.GpuLoadPercent:F0}";
-            NetPill.Value = $"{_vm.NetDownMBps:F1}";
+            CpuPill.Value = $"{_vm.CpuLoadPercent:F0}%";
+            RamPill.Value = _vm.RamTotalGb > 0 ? $"{(_vm.RamUsedGb / _vm.RamTotalGb * 100):F0}%" : "—";
+            GpuPill.Value = $"{_vm.GpuLoadPercent:F0}%";
+            NetPill.Value = _vm.NetDownMBps >= 10 ? $"{_vm.NetDownMBps:F0} MB/s" : $"{_vm.NetDownMBps:F1} MB/s";
         });
 }

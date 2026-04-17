@@ -1,5 +1,4 @@
 using PerfMonitor.Core.ViewModels;
-using PerfMonitor.Windowing.Interop;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
@@ -27,7 +26,6 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
         NetPill.AccentBrush = NetAccent;
 
         _vm.PropertyChanged += OnVmChanged;
-        SourceInitialized += (_, _) => Dwm.TryEnableMica(this);
         RefreshAll();
     }
 
@@ -39,18 +37,18 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
             {
                 case nameof(MainViewModel.CpuLoadPercent):
                 case nameof(MainViewModel.CpuStatus):
-                    CpuPill.Value = $"{_vm.CpuLoadPercent:F0}";
+                    CpuPill.Value = $"{_vm.CpuLoadPercent:F0}%";
                     CpuPill.AccentBrush = _vm.CpuStatus == MetricStatus.Crit ? AlertAccent : CpuAccent;
                     break;
                 case nameof(MainViewModel.RamUsedGb):
                 case nameof(MainViewModel.RamTotalGb):
-                    RamPill.Value = _vm.RamTotalGb > 0 ? $"{(_vm.RamUsedGb / _vm.RamTotalGb * 100):F0}" : "—";
+                    RamPill.Value = _vm.RamTotalGb > 0 ? $"{(_vm.RamUsedGb / _vm.RamTotalGb * 100):F0}%" : "—";
                     break;
                 case nameof(MainViewModel.GpuLoadPercent):
-                    GpuPill.Value = $"{_vm.GpuLoadPercent:F0}";
+                    GpuPill.Value = $"{_vm.GpuLoadPercent:F0}%";
                     break;
                 case nameof(MainViewModel.NetDownMBps):
-                    NetPill.Value = $"{_vm.NetDownMBps:F1}";
+                    NetPill.Value = FormatNet(_vm.NetDownMBps);
                     break;
             }
         });
@@ -58,11 +56,14 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
 
     private void RefreshAll()
     {
-        CpuPill.Value = $"{_vm.CpuLoadPercent:F0}";
-        RamPill.Value = _vm.RamTotalGb > 0 ? $"{(_vm.RamUsedGb / _vm.RamTotalGb * 100):F0}" : "—";
-        GpuPill.Value = $"{_vm.GpuLoadPercent:F0}";
-        NetPill.Value = $"{_vm.NetDownMBps:F1}";
+        CpuPill.Value = $"{_vm.CpuLoadPercent:F0}%";
+        RamPill.Value = _vm.RamTotalGb > 0 ? $"{(_vm.RamUsedGb / _vm.RamTotalGb * 100):F0}%" : "—";
+        GpuPill.Value = $"{_vm.GpuLoadPercent:F0}%";
+        NetPill.Value = FormatNet(_vm.NetDownMBps);
     }
+
+    private static string FormatNet(float mbps) =>
+        mbps >= 10 ? $"{mbps:F0} MB/s" : $"{mbps:F1} MB/s";
 
     private void OnDragTrigger(object sender, MouseButtonEventArgs e)
     {
