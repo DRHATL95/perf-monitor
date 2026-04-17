@@ -70,6 +70,8 @@ public partial class App : Application
                 });
                 services.AddSingleton<PerfMonitor.Tray.TrayIconHost>();
                 services.AddHostedService<Services.MetricsSampler>();
+                services.AddTransient<PerfMonitor.Windowing.ViewModels.SettingsViewModel>();
+                services.AddTransient<PerfMonitor.Windowing.Windows.SettingsWindow>();
             })
             .Build();
 
@@ -96,6 +98,11 @@ public partial class App : Application
         {
             if (widget is Window w)
                 w.Visibility = w.IsVisible ? System.Windows.Visibility.Hidden : System.Windows.Visibility.Visible;
+        };
+        tray.SettingsRequested += (_, _) =>
+        {
+            var win = Services.GetRequiredService<PerfMonitor.Windowing.Windows.SettingsWindow>();
+            win.Show();
         };
         tray.Show();
 
