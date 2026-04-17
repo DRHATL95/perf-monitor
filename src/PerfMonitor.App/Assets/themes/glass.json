@@ -1,0 +1,44 @@
+{
+  "$schema": "./theme.schema.json",
+  "name": "Glass",
+  "description": "Default glassmorphic theme. Heavy-blur translucent surfaces, low-contrast monochrome body, color-accented pills.",
+
+  "palette": {
+    "surface":         "rgba(30, 30, 35, 0.65)",
+    "surfaceBorder":   "rgba(255, 255, 255, 0.08)",
+    "surfaceBlurPx":   24,
+    "text":            "#ffffff",
+    "textMuted":       "rgba(255, 255, 255, 0.55)",
+    "pillBase":        "rgba(255, 255, 255, 0.06)",
+
+    "accentCpu":       "#ff8a5a",
+    "accentRam":       "#5ad0ff",
+    "accentGpu":       "#a58aff",
+    "accentNet":       "#5affaa",
+    "accentPulse":     "#00f0ff",
+    "accentAlert":     "#ff4d6d"
+  },
+
+  "typography": {
+    "fontFamily":      "Segoe UI Variable, Segoe UI, system-ui, sans-serif",
+    "fontFamilyMono":  "Cascadia Code, Consolas, monospace",
+    "fontSizeLabel":   9,
+    "fontSizeValue":   15,
+    "fontWeightLabel": 500,
+    "fontWeightValue": 500
+  },
+
+  "geometry": {
+    "pillRadius":      12,
+    "containerRadius": 18,
+    "containerPadding": 10,
+    "pillGap":         6,
+    "pillPaddingX":    10,
+    "pillPaddingY":    8
+  },
+
+  "thresholds": {
+    "desaturateWarn":  true,
+    "shiftHueOnCrit":  true
+  }
+}

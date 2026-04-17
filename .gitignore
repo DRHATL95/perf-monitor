@@ -1,0 +1,25 @@
+# Brainstorm / superpowers session artifacts
+.superpowers/
+
+# Build outputs
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+
+# VS / Rider / VSCode
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Publish output
+publish/
+
+# Local settings
+appsettings.*.Local.json
+local.settings.json
+
+# OS
+Thumbs.db
+.DS_Store
