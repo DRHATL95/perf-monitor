@@ -29,6 +29,20 @@ public partial class App : Application
         var appDataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "PerfMonitor");
+        Directory.CreateDirectory(appDataDir);
+
+        // Global crash logger — writes to %APPDATA%\PerfMonitor\crash.log so
+        // silent WPF dispatcher exceptions leave a paper trail.
+        var crashLog = Path.Combine(appDataDir, "crash.log");
+        DispatcherUnhandledException += (_, ex) =>
+        {
+            File.AppendAllText(crashLog, $"[{DateTime.Now:u}] DISPATCHER: {ex.Exception}\n\n");
+            ex.Handled = false;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
+        {
+            File.AppendAllText(crashLog, $"[{DateTime.Now:u}] APPDOMAIN: {ex.ExceptionObject}\n\n");
+        };
 
         _host = Host.CreateDefaultBuilder()
             .ConfigureLogging(lb => lb.AddDebug())
