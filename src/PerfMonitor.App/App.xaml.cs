@@ -85,6 +85,12 @@ public partial class App : Application
                 w.Visibility = w.IsVisible ? System.Windows.Visibility.Hidden : System.Windows.Visibility.Visible;
         };
         tray.Show();
+
+        if (Services.GetRequiredService<ISettingsStore>().Load().Behavior.AutoHideOnFullscreen
+            && widget is Window w)
+        {
+            _ = new PerfMonitor.Windowing.Behaviors.FullscreenDetector(w);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
