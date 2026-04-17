@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using PerfMonitor.Core.Settings;
 using PerfMonitor.Core.ViewModels;
+using PerfMonitor.Hardware;
 using System.IO;
 using System.Windows;
 
@@ -39,6 +40,15 @@ public partial class App : Application
                         GpuTempWarnC   = s.Thresholds.GpuTempWarnC,
                         GpuTempCritC   = s.Thresholds.GpuTempCritC
                     };
+                });
+                // LhmHardwareSource handles both elevated and unelevated cases internally
+                // (returns null temps + Health = TempsUnavailable when unelevated).
+                services.AddSingleton<IHardwareSource>(_ => new LhmHardwareSource());
+                services.AddSingleton<HardwareMonitor>(sp =>
+                {
+                    var src = sp.GetRequiredService<IHardwareSource>();
+                    var settings = sp.GetRequiredService<ISettingsStore>().Load();
+                    return new HardwareMonitor(src, settings.Display.RefreshIntervalMs);
                 });
             })
             .Build();

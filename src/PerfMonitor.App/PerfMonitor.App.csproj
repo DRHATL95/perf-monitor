@@ -17,4 +17,7 @@
     <Resource Include="Assets\app-icon.svg" />
     <Resource Include="Assets\themes\glass.json" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PerfMonitor.Hardware\PerfMonitor.Hardware.csproj" />
+  </ItemGroup>
 </Project>

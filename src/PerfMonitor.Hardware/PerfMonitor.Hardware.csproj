@@ -4,8 +4,12 @@
     <ProjectReference Include="..\PerfMonitor.Core\PerfMonitor.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="LibreHardwareMonitorLib" />
+  </ItemGroup>
+
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
