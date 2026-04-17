@@ -16,11 +16,10 @@
                     <TextBlock Text="Mode" Margin="0,4,0,2"/>
                     <ComboBox SelectedValue="{Binding Mode}" SelectedValuePath="Content">
                         <ComboBoxItem Content="Floating"/>
-                        <ComboBoxItem Content="DockedTop"/>
-                        <ComboBoxItem Content="DockedBottom"/>
-                        <ComboBoxItem Content="DockedLeft"/>
-                        <ComboBoxItem Content="DockedRight"/>
+                        <ComboBoxItem Content="OnTop"/>
                     </ComboBox>
+                    <TextBlock Text="Floating: draggable; fades on fullscreen (if enabled). OnTop: same widget, always visible, periodically re-asserts topmost."
+                               FontSize="10" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0"/>
                     <TextBlock Text="Opacity" Margin="0,10,0,2"/>
                     <Slider Minimum="0.3" Maximum="1.0" Value="{Binding Opacity}" TickFrequency="0.05" IsSnapToTickEnabled="True"/>
                     <TextBlock Text="Refresh (ms)" Margin="0,10,0,2"/>

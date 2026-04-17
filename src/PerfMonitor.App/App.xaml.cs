@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using PerfMonitor.Core.Settings;
 using PerfMonitor.Core.ViewModels;
 using PerfMonitor.Hardware;
-using PerfMonitor.Windowing.Docking;
 using PerfMonitor.Windowing.Windows;
 using System.IO;
 using System.Windows;
@@ -17,6 +16,7 @@ public partial class App : Application
     private IHost? _host;
     private PerfMonitor.Windowing.Behaviors.FullscreenDetector? _fullscreenDetector;
     private PerfMonitor.Windowing.Behaviors.HotkeyService? _hotkeyService;
+    private PerfMonitor.Windowing.Behaviors.TopmostGuard? _topmostGuard;
     private IWidgetWindow? _widget;
     private DisplayMode _activeMode;
 
@@ -57,21 +57,9 @@ public partial class App : Application
                     var settings = sp.GetRequiredService<ISettingsStore>().Load();
                     return new HardwareMonitor(src, settings.Display.RefreshIntervalMs);
                 });
-                services.AddSingleton<IAppBarService, AppBarService>();
                 services.AddSingleton<IWidgetWindow>(sp =>
-                {
-                    var vm = sp.GetRequiredService<MainViewModel>();
-                    var settings = sp.GetRequiredService<ISettingsStore>().Load();
-                    return settings.Display.Mode switch
-                    {
-                        DisplayMode.Floating     => new PerfMonitor.Windowing.Windows.MainWidgetWindow(vm),
-                        DisplayMode.DockedTop    => new PerfMonitor.Windowing.Windows.DockedBarWindow(vm, sp.GetRequiredService<IAppBarService>(), AppBarEdge.Top),
-                        DisplayMode.DockedBottom => new PerfMonitor.Windowing.Windows.DockedBarWindow(vm, sp.GetRequiredService<IAppBarService>(), AppBarEdge.Bottom),
-                        DisplayMode.DockedLeft   => new PerfMonitor.Windowing.Windows.DockedBarWindow(vm, sp.GetRequiredService<IAppBarService>(), AppBarEdge.Left),
-                        DisplayMode.DockedRight  => new PerfMonitor.Windowing.Windows.DockedBarWindow(vm, sp.GetRequiredService<IAppBarService>(), AppBarEdge.Right),
-                        _ => new PerfMonitor.Windowing.Windows.MainWidgetWindow(vm)
-                    };
-                });
+                    new PerfMonitor.Windowing.Windows.MainWidgetWindow(
+                        sp.GetRequiredService<MainViewModel>()));
                 services.AddSingleton<PerfMonitor.Tray.TrayIconHost>();
                 services.AddHostedService<Services.MetricsSampler>();
                 services.AddHostedService<Services.PerfBudgetCheck>();
@@ -113,8 +101,7 @@ public partial class App : Application
         };
         tray.Show();
 
-        if (currentSettings.Behavior.AutoHideOnFullscreen && _widget is Window fsw)
-            _fullscreenDetector = new PerfMonitor.Windowing.Behaviors.FullscreenDetector(fsw);
+        ApplyModeBehavior(currentSettings);
 
         if (_widget is Window hw)
             _hotkeyService = new PerfMonitor.Windowing.Behaviors.HotkeyService(hw, ModifierKeys.Control | ModifierKeys.Alt, Key.M);
@@ -146,14 +133,7 @@ public partial class App : Application
         // Opacity
         if (_widget is Window w) w.Opacity = s.Display.Opacity;
 
-        // Auto-hide-on-fullscreen toggle
-        if (s.Behavior.AutoHideOnFullscreen && _fullscreenDetector is null && _widget is Window fsw)
-            _fullscreenDetector = new PerfMonitor.Windowing.Behaviors.FullscreenDetector(fsw);
-        else if (!s.Behavior.AutoHideOnFullscreen && _fullscreenDetector is not null)
-        {
-            _fullscreenDetector.Dispose();
-            _fullscreenDetector = null;
-        }
+        ApplyModeBehavior(s);
 
         // Start-with-Windows
         try
@@ -165,33 +145,46 @@ public partial class App : Application
         }
         catch { /* non-fatal */ }
 
-        // Display mode change requires recreating the window — prompt for restart.
-        if (s.Display.Mode != _activeMode)
+        // Floating ↔ OnTop is a pure behavior change on the same window;
+        // ApplyModeBehavior handles it without needing a restart.
+        _activeMode = s.Display.Mode;
+    }
+
+    /// <summary>
+    /// Wires fullscreen-fade and topmost-reassert services based on the
+    /// configured display mode. Floating respects AutoHideOnFullscreen;
+    /// OnTop forces always-visible + periodic topmost re-assert.
+    /// </summary>
+    private void ApplyModeBehavior(AppSettings s)
+    {
+        if (_widget is not Window window) return;
+
+        var wantFullscreenDetector =
+            s.Display.Mode == DisplayMode.Floating && s.Behavior.AutoHideOnFullscreen;
+        var wantTopmostGuard = s.Display.Mode == DisplayMode.OnTop;
+
+        if (wantFullscreenDetector && _fullscreenDetector is null)
+            _fullscreenDetector = new PerfMonitor.Windowing.Behaviors.FullscreenDetector(window);
+        else if (!wantFullscreenDetector && _fullscreenDetector is not null)
         {
-            var result = MessageBox.Show(
-                $"Switching to {s.Display.Mode} requires restarting PerfMonitor. Restart now?",
-                "PerfMonitor",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-            if (result == MessageBoxResult.Yes)
-            {
-                var exe = Environment.ProcessPath;
-                if (exe is not null)
-                {
-                    System.Diagnostics.Process.Start(exe);
-                    Shutdown();
-                }
-            }
-            else
-            {
-                _activeMode = s.Display.Mode; // don't re-prompt on each subsequent fire
-            }
+            _fullscreenDetector.Dispose();
+            _fullscreenDetector = null;
+            window.Opacity = s.Display.Opacity; // restore, in case we were mid-fade
+        }
+
+        if (wantTopmostGuard && _topmostGuard is null)
+            _topmostGuard = new PerfMonitor.Windowing.Behaviors.TopmostGuard(window);
+        else if (!wantTopmostGuard && _topmostGuard is not null)
+        {
+            _topmostGuard.Dispose();
+            _topmostGuard = null;
         }
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         _fullscreenDetector?.Dispose();
+        _topmostGuard?.Dispose();
         _hotkeyService?.Dispose();
         _host?.StopAsync().GetAwaiter().GetResult();
         _host?.Dispose();

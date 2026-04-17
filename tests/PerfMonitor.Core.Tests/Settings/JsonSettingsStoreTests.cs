@@ -24,11 +24,11 @@ public class JsonSettingsStoreTests : IDisposable
         var store = new JsonSettingsStore(_dir);
         var original = new AppSettings
         {
-            Display = new DisplaySettings { Mode = DisplayMode.DockedTop, Opacity = 0.5, RefreshIntervalMs = 500 }
+            Display = new DisplaySettings { Mode = DisplayMode.OnTop, Opacity = 0.5, RefreshIntervalMs = 500 }
         };
         store.Save(original);
         var loaded = store.Load();
-        loaded.Display.Mode.Should().Be(DisplayMode.DockedTop);
+        loaded.Display.Mode.Should().Be(DisplayMode.OnTop);
         loaded.Display.Opacity.Should().Be(0.5);
         loaded.Display.RefreshIntervalMs.Should().Be(500);
     }

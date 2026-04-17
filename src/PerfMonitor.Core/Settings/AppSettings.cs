@@ -1,6 +1,12 @@
 namespace PerfMonitor.Core.Settings;
 
-public enum DisplayMode { Floating, DockedTop, DockedBottom, DockedLeft, DockedRight }
+public enum DisplayMode
+{
+    /// <summary>Draggable widget. Respects auto-hide-on-fullscreen.</summary>
+    Floating,
+    /// <summary>Same widget, always-on-top with periodic topmost re-assert. Never fades.</summary>
+    OnTop
+}
 
 public record Position(int X, int Y);
 
