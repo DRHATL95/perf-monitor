@@ -1,0 +1,47 @@
+namespace PerfMonitor.Core.Settings;
+
+public enum DisplayMode { Floating, DockedTop, DockedBottom, DockedLeft, DockedRight }
+
+public record Position(int X, int Y);
+
+public record DisplaySettings
+{
+    public DisplayMode Mode { get; init; } = DisplayMode.Floating;
+    public Position Position { get; init; } = new(20, 20);
+    public double Opacity { get; init; } = 0.85;
+    public int RefreshIntervalMs { get; init; } = 1000;
+    public string Theme { get; init; } = "Glass";
+    public string[] ShowPills { get; init; } = ["Cpu", "Ram", "Gpu", "Net"];
+}
+
+public record TraySettings
+{
+    public bool Enabled { get; init; } = true;
+    public string[] Icons { get; init; } = ["Cpu", "Ram", "Gpu", "CpuTemp"];
+}
+
+public record BehaviorSettings
+{
+    public bool AutoHideOnFullscreen { get; init; } = true;
+    public string[] FullscreenWhitelist { get; init; } = [];
+    public string ClickThroughHotkey { get; init; } = "Ctrl+Alt+M";
+    public bool StartWithWindows { get; init; } = true;
+}
+
+public record ThresholdSettings
+{
+    public float CpuWarnPercent { get; init; } = 85f;
+    public float CpuCritPercent { get; init; } = 95f;
+    public float CpuTempWarnC { get; init; } = 80f;
+    public float CpuTempCritC { get; init; } = 90f;
+    public float GpuTempWarnC { get; init; } = 80f;
+    public float GpuTempCritC { get; init; } = 88f;
+}
+
+public record AppSettings
+{
+    public DisplaySettings Display { get; init; } = new();
+    public TraySettings Tray { get; init; } = new();
+    public BehaviorSettings Behavior { get; init; } = new();
+    public ThresholdSettings Thresholds { get; init; } = new();
+}
