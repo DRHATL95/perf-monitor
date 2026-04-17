@@ -17,6 +17,10 @@ public sealed class TrayIconHost : IDisposable
 
     private int _lastCpu = -1, _lastRam = -1, _lastGpu = -1, _lastCpuTemp = -1;
 
+    public event EventHandler? ExitRequested;
+    public event EventHandler? SettingsRequested;
+    public event EventHandler? ToggleVisibilityRequested;
+
     public TrayIconHost(MainViewModel vm)
     {
         _vm = vm;
@@ -24,8 +28,29 @@ public sealed class TrayIconHost : IDisposable
         _ramIcon.ToolTipText = "RAM used %";
         _gpuIcon.ToolTipText = "GPU load";
         _cpuTempIcon.ToolTipText = "CPU temperature";
+        var menu = BuildMenu();
+        _cpuIcon.ContextMenu = menu;
+        _ramIcon.ContextMenu = menu;
+        _gpuIcon.ContextMenu = menu;
+        _cpuTempIcon.ContextMenu = menu;
         _vm.PropertyChanged += OnVmChanged;
         UpdateAll();
+    }
+
+    private System.Windows.Controls.ContextMenu BuildMenu()
+    {
+        var menu = new System.Windows.Controls.ContextMenu();
+        var toggle = new System.Windows.Controls.MenuItem { Header = "Show / Hide widget" };
+        toggle.Click += (_, _) => ToggleVisibilityRequested?.Invoke(this, EventArgs.Empty);
+        var settings = new System.Windows.Controls.MenuItem { Header = "Settings..." };
+        settings.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
+        var exit = new System.Windows.Controls.MenuItem { Header = "Exit" };
+        exit.Click += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
+        menu.Items.Add(toggle);
+        menu.Items.Add(settings);
+        menu.Items.Add(new System.Windows.Controls.Separator());
+        menu.Items.Add(exit);
+        return menu;
     }
 
     public void Show()

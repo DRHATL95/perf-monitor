@@ -62,6 +62,8 @@ public partial class App : Application
         widget.Show();
 
         var tray = Services.GetRequiredService<PerfMonitor.Tray.TrayIconHost>();
+        tray.ExitRequested += (_, _) => Shutdown();
+        tray.ToggleVisibilityRequested += (_, _) => widget.Visibility = widget.IsVisible ? System.Windows.Visibility.Hidden : System.Windows.Visibility.Visible;
         tray.Show();
     }
 
