@@ -75,6 +75,18 @@ public partial class App : Application
 
         _host.Start();
 
+        var currentSettings = Services.GetRequiredService<ISettingsStore>().Load();
+        if (currentSettings.Behavior.StartWithWindows && !PerfMonitor.Startup.StartupRegistrar.IsRegistered())
+        {
+            try { PerfMonitor.Startup.StartupRegistrar.Register(Environment.ProcessPath!); }
+            catch { /* user can retry from settings */ }
+        }
+        else if (!currentSettings.Behavior.StartWithWindows && PerfMonitor.Startup.StartupRegistrar.IsRegistered())
+        {
+            try { PerfMonitor.Startup.StartupRegistrar.Unregister(); }
+            catch { /* ignore */ }
+        }
+
         var widget = Services.GetRequiredService<IWidgetWindow>();
         widget.Show();
 
