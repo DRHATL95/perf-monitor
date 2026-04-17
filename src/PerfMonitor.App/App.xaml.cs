@@ -50,10 +50,15 @@ public partial class App : Application
                     var settings = sp.GetRequiredService<ISettingsStore>().Load();
                     return new HardwareMonitor(src, settings.Display.RefreshIntervalMs);
                 });
+                services.AddSingleton<PerfMonitor.Windowing.Windows.MainWidgetWindow>();
+                services.AddHostedService<Services.MetricsSampler>();
             })
             .Build();
 
         _host.Start();
+
+        var widget = Services.GetRequiredService<PerfMonitor.Windowing.Windows.MainWidgetWindow>();
+        widget.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)
