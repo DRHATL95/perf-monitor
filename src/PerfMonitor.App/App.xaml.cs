@@ -51,6 +51,7 @@ public partial class App : Application
                     return new HardwareMonitor(src, settings.Display.RefreshIntervalMs);
                 });
                 services.AddSingleton<PerfMonitor.Windowing.Windows.MainWidgetWindow>();
+                services.AddSingleton<PerfMonitor.Tray.TrayIconHost>();
                 services.AddHostedService<Services.MetricsSampler>();
             })
             .Build();
@@ -59,6 +60,9 @@ public partial class App : Application
 
         var widget = Services.GetRequiredService<PerfMonitor.Windowing.Windows.MainWidgetWindow>();
         widget.Show();
+
+        var tray = Services.GetRequiredService<PerfMonitor.Tray.TrayIconHost>();
+        tray.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)

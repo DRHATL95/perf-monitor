@@ -20,5 +20,6 @@
   <ItemGroup>
     <ProjectReference Include="..\PerfMonitor.Hardware\PerfMonitor.Hardware.csproj" />
     <ProjectReference Include="..\PerfMonitor.Windowing\PerfMonitor.Windowing.csproj" />
+    <ProjectReference Include="..\PerfMonitor.Tray\PerfMonitor.Tray.csproj" />
   </ItemGroup>
 </Project>
