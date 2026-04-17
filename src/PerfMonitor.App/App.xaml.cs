@@ -8,6 +8,7 @@ using PerfMonitor.Windowing.Docking;
 using PerfMonitor.Windowing.Windows;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 
 namespace PerfMonitor.App;
 
@@ -91,6 +92,9 @@ public partial class App : Application
         {
             _ = new PerfMonitor.Windowing.Behaviors.FullscreenDetector(w);
         }
+
+        if (widget is Window hw)
+            _ = new PerfMonitor.Windowing.Behaviors.HotkeyService(hw, ModifierKeys.Control | ModifierKeys.Alt, Key.M);
     }
 
     protected override void OnExit(ExitEventArgs e)
