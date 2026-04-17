@@ -7,6 +7,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>PerfMonitor</AssemblyName>
     <StartupObject>PerfMonitor.App.Program</StartupObject>
+    <ApplicationIcon>Assets\app-icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\PerfMonitor.Core\PerfMonitor.Core.csproj" />
