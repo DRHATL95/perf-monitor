@@ -7,7 +7,7 @@ using System.Windows.Media;
 
 namespace PerfMonitor.Windowing.Windows;
 
-public partial class MainWidgetWindow : Window
+public partial class MainWidgetWindow : Window, IWidgetWindow
 {
     private static readonly Brush CpuAccent = (Brush)new BrushConverter().ConvertFromString("#FF8A5A")!;
     private static readonly Brush RamAccent = (Brush)new BrushConverter().ConvertFromString("#5AD0FF")!;

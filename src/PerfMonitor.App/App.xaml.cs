@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using PerfMonitor.Core.Settings;
 using PerfMonitor.Core.ViewModels;
 using PerfMonitor.Hardware;
+using PerfMonitor.Windowing.Docking;
+using PerfMonitor.Windowing.Windows;
 using System.IO;
 using System.Windows;
 
@@ -50,7 +52,21 @@ public partial class App : Application
                     var settings = sp.GetRequiredService<ISettingsStore>().Load();
                     return new HardwareMonitor(src, settings.Display.RefreshIntervalMs);
                 });
-                services.AddSingleton<PerfMonitor.Windowing.Windows.MainWidgetWindow>();
+                services.AddSingleton<IAppBarService, AppBarService>();
+                services.AddSingleton<IWidgetWindow>(sp =>
+                {
+                    var vm = sp.GetRequiredService<MainViewModel>();
+                    var settings = sp.GetRequiredService<ISettingsStore>().Load();
+                    return settings.Display.Mode switch
+                    {
+                        DisplayMode.Floating     => new PerfMonitor.Windowing.Windows.MainWidgetWindow(vm),
+                        DisplayMode.DockedTop    => new PerfMonitor.Windowing.Windows.DockedBarWindow(vm, sp.GetRequiredService<IAppBarService>(), AppBarEdge.Top),
+                        DisplayMode.DockedBottom => new PerfMonitor.Windowing.Windows.DockedBarWindow(vm, sp.GetRequiredService<IAppBarService>(), AppBarEdge.Bottom),
+                        DisplayMode.DockedLeft   => new PerfMonitor.Windowing.Windows.DockedBarWindow(vm, sp.GetRequiredService<IAppBarService>(), AppBarEdge.Left),
+                        DisplayMode.DockedRight  => new PerfMonitor.Windowing.Windows.DockedBarWindow(vm, sp.GetRequiredService<IAppBarService>(), AppBarEdge.Right),
+                        _ => new PerfMonitor.Windowing.Windows.MainWidgetWindow(vm)
+                    };
+                });
                 services.AddSingleton<PerfMonitor.Tray.TrayIconHost>();
                 services.AddHostedService<Services.MetricsSampler>();
             })
@@ -58,12 +74,16 @@ public partial class App : Application
 
         _host.Start();
 
-        var widget = Services.GetRequiredService<PerfMonitor.Windowing.Windows.MainWidgetWindow>();
+        var widget = Services.GetRequiredService<IWidgetWindow>();
         widget.Show();
 
         var tray = Services.GetRequiredService<PerfMonitor.Tray.TrayIconHost>();
         tray.ExitRequested += (_, _) => Shutdown();
-        tray.ToggleVisibilityRequested += (_, _) => widget.Visibility = widget.IsVisible ? System.Windows.Visibility.Hidden : System.Windows.Visibility.Visible;
+        tray.ToggleVisibilityRequested += (_, _) =>
+        {
+            if (widget is Window w)
+                w.Visibility = w.IsVisible ? System.Windows.Visibility.Hidden : System.Windows.Visibility.Visible;
+        };
         tray.Show();
     }
 

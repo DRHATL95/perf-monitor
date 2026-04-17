@@ -1,0 +1,20 @@
+<Window x:Class="PerfMonitor.Windowing.Windows.DockedBarWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:PerfMonitor.Windowing.Controls"
+        Title="PerfMonitor Dock"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False">
+    <Border Background="#BF1E1E23" BorderBrush="#14FFFFFF" BorderThickness="0,0,0,1" Padding="12,8">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+            <c:PillControl x:Name="CpuPill" Label="CPU" Value="—" Margin="0,0,8,0"/>
+            <c:PillControl x:Name="RamPill" Label="RAM" Value="—" Margin="0,0,8,0"/>
+            <c:PillControl x:Name="GpuPill" Label="GPU" Value="—" Margin="0,0,8,0"/>
+            <c:PillControl x:Name="NetPill" Label="NET" Value="—"/>
+        </StackPanel>
+    </Border>
+</Window>
