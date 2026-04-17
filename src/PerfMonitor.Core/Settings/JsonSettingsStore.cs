@@ -44,6 +44,9 @@ public sealed class JsonSettingsStore : ISettingsStore, IDisposable
     {
         var json = JsonSerializer.Serialize(settings, Options);
         File.WriteAllText(_path, json);
+        // Fire synchronously for same-process saves so UI can apply instantly.
+        // FileSystemWatcher may double-fire — handlers must be idempotent.
+        SettingsChanged?.Invoke(this, settings);
     }
 
     public void Dispose() => _watcher?.Dispose();

@@ -22,12 +22,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private MetricStatus cpuTempStatus;
     [ObservableProperty] private MetricStatus gpuTempStatus;
 
-    public float CpuWarnPercent { get; init; } = 85f;
-    public float CpuCritPercent { get; init; } = 95f;
-    public float CpuTempWarnC { get; init; } = 80f;
-    public float CpuTempCritC { get; init; } = 90f;
-    public float GpuTempWarnC { get; init; } = 80f;
-    public float GpuTempCritC { get; init; } = 88f;
+    public float CpuWarnPercent { get; set; } = 85f;
+    public float CpuCritPercent { get; set; } = 95f;
+    public float CpuTempWarnC { get; set; } = 80f;
+    public float CpuTempCritC { get; set; } = 90f;
+    public float GpuTempWarnC { get; set; } = 80f;
+    public float GpuTempCritC { get; set; } = 88f;
 
     public void Apply(MetricsSnapshot s)
     {

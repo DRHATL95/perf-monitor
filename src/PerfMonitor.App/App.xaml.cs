@@ -17,6 +17,8 @@ public partial class App : Application
     private IHost? _host;
     private PerfMonitor.Windowing.Behaviors.FullscreenDetector? _fullscreenDetector;
     private PerfMonitor.Windowing.Behaviors.HotkeyService? _hotkeyService;
+    private IWidgetWindow? _widget;
+    private DisplayMode _activeMode;
 
     public IServiceProvider Services => _host!.Services;
 
@@ -92,14 +94,16 @@ public partial class App : Application
             catch { /* ignore */ }
         }
 
-        var widget = Services.GetRequiredService<IWidgetWindow>();
-        widget.Show();
+        _widget = Services.GetRequiredService<IWidgetWindow>();
+        _activeMode = currentSettings.Display.Mode;
+        _widget.Show();
+        if (_widget is Window ww) ww.Opacity = currentSettings.Display.Opacity;
 
         var tray = Services.GetRequiredService<PerfMonitor.Tray.TrayIconHost>();
         tray.ExitRequested += (_, _) => Shutdown();
         tray.ToggleVisibilityRequested += (_, _) =>
         {
-            if (widget is Window w)
+            if (_widget is Window w)
                 w.Visibility = w.IsVisible ? System.Windows.Visibility.Hidden : System.Windows.Visibility.Visible;
         };
         tray.SettingsRequested += (_, _) =>
@@ -109,14 +113,80 @@ public partial class App : Application
         };
         tray.Show();
 
-        if (Services.GetRequiredService<ISettingsStore>().Load().Behavior.AutoHideOnFullscreen
-            && widget is Window w)
+        if (currentSettings.Behavior.AutoHideOnFullscreen && _widget is Window fsw)
+            _fullscreenDetector = new PerfMonitor.Windowing.Behaviors.FullscreenDetector(fsw);
+
+        if (_widget is Window hw)
+            _hotkeyService = new PerfMonitor.Windowing.Behaviors.HotkeyService(hw, ModifierKeys.Control | ModifierKeys.Alt, Key.M);
+
+        // Live-apply settings whenever the settings file changes (via Save()
+        // in-process or FileSystemWatcher for external edits).
+        Services.GetRequiredService<ISettingsStore>().SettingsChanged += OnSettingsChanged;
+    }
+
+    private void OnSettingsChanged(object? sender, AppSettings s)
+    {
+        Dispatcher.Invoke(() => ApplyLive(s));
+    }
+
+    private void ApplyLive(AppSettings s)
+    {
+        // Thresholds — applied on next sampler tick via MainViewModel.Classify
+        var vm = Services.GetRequiredService<MainViewModel>();
+        vm.CpuWarnPercent = s.Thresholds.CpuWarnPercent;
+        vm.CpuCritPercent = s.Thresholds.CpuCritPercent;
+        vm.CpuTempWarnC   = s.Thresholds.CpuTempWarnC;
+        vm.CpuTempCritC   = s.Thresholds.CpuTempCritC;
+        vm.GpuTempWarnC   = s.Thresholds.GpuTempWarnC;
+        vm.GpuTempCritC   = s.Thresholds.GpuTempCritC;
+
+        // Refresh rate
+        Services.GetRequiredService<HardwareMonitor>().SetInterval(s.Display.RefreshIntervalMs);
+
+        // Opacity
+        if (_widget is Window w) w.Opacity = s.Display.Opacity;
+
+        // Auto-hide-on-fullscreen toggle
+        if (s.Behavior.AutoHideOnFullscreen && _fullscreenDetector is null && _widget is Window fsw)
+            _fullscreenDetector = new PerfMonitor.Windowing.Behaviors.FullscreenDetector(fsw);
+        else if (!s.Behavior.AutoHideOnFullscreen && _fullscreenDetector is not null)
         {
-            _fullscreenDetector = new PerfMonitor.Windowing.Behaviors.FullscreenDetector(w);
+            _fullscreenDetector.Dispose();
+            _fullscreenDetector = null;
         }
 
-        if (widget is Window hw)
-            _hotkeyService = new PerfMonitor.Windowing.Behaviors.HotkeyService(hw, ModifierKeys.Control | ModifierKeys.Alt, Key.M);
+        // Start-with-Windows
+        try
+        {
+            if (s.Behavior.StartWithWindows && !PerfMonitor.Startup.StartupRegistrar.IsRegistered())
+                PerfMonitor.Startup.StartupRegistrar.Register(Environment.ProcessPath!);
+            else if (!s.Behavior.StartWithWindows && PerfMonitor.Startup.StartupRegistrar.IsRegistered())
+                PerfMonitor.Startup.StartupRegistrar.Unregister();
+        }
+        catch { /* non-fatal */ }
+
+        // Display mode change requires recreating the window — prompt for restart.
+        if (s.Display.Mode != _activeMode)
+        {
+            var result = MessageBox.Show(
+                $"Switching to {s.Display.Mode} requires restarting PerfMonitor. Restart now?",
+                "PerfMonitor",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (result == MessageBoxResult.Yes)
+            {
+                var exe = Environment.ProcessPath;
+                if (exe is not null)
+                {
+                    System.Diagnostics.Process.Start(exe);
+                    Shutdown();
+                }
+            }
+            else
+            {
+                _activeMode = s.Display.Mode; // don't re-prompt on each subsequent fire
+            }
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

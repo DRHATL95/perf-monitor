@@ -13,8 +13,10 @@ public sealed class HardwareMonitor : IDisposable
     private CancellationTokenSource? _cts;
     private Task? _loop;
 
-    public int IntervalMs { get; }
+    public int IntervalMs { get; private set; }
     public ChannelReader<MetricsSnapshot> Reader => _channel.Reader;
+
+    public void SetInterval(int ms) => IntervalMs = Math.Clamp(ms, 250, 5000);
 
     public HardwareMonitor(IHardwareSource source, int intervalMs = 1000)
     {
