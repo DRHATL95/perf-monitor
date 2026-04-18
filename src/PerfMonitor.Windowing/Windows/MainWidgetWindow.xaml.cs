@@ -22,6 +22,10 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
     private ProcessMetric? _expandedMetric;
     private IReadOnlyList<ProcessSnapshot>? _latestProcessSnapshots;
 
+    // Edge-trigger tracking for auto-expand on Crit. We only open when
+    // status transitions INTO Crit — not on every tick while it remains Crit.
+    private MetricStatus _lastCpuStatus = MetricStatus.Ok;
+
     public MainWidgetWindow(MainViewModel vm, IProcessSampler? processSampler = null)
     {
         InitializeComponent();
@@ -55,6 +59,14 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
                 case nameof(MainViewModel.CpuStatus):
                     CpuPill.Value = $"{_vm.CpuLoadPercent:F0}%";
                     CpuPill.AccentBrush = _vm.CpuStatus == MetricStatus.Crit ? AlertAccent : CpuAccent;
+                    // Edge-triggered auto-expand: !Crit -> Crit, panel closed -> open on CPU.
+                    if (_vm.CpuStatus == MetricStatus.Crit
+                        && _lastCpuStatus != MetricStatus.Crit
+                        && _expandedMetric is null)
+                    {
+                        TogglePanel(ProcessMetric.Cpu);
+                    }
+                    _lastCpuStatus = _vm.CpuStatus;
                     break;
                 case nameof(MainViewModel.RamUsedGb):
                 case nameof(MainViewModel.RamTotalGb):
