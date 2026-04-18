@@ -72,9 +72,12 @@ public partial class App : Application
                     var settings = sp.GetRequiredService<ISettingsStore>().Load();
                     return new HardwareMonitor(src, settings.Display.RefreshIntervalMs);
                 });
+                services.AddSingleton<PerfMonitor.Core.Metrics.IProcessSampler>(_ =>
+                    new ProcessSampler(interval: TimeSpan.FromSeconds(1)));
                 services.AddSingleton<IWidgetWindow>(sp =>
                     new PerfMonitor.Windowing.Windows.MainWidgetWindow(
-                        sp.GetRequiredService<MainViewModel>()));
+                        sp.GetRequiredService<MainViewModel>(),
+                        sp.GetRequiredService<PerfMonitor.Core.Metrics.IProcessSampler>()));
                 services.AddSingleton<PerfMonitor.Tray.TrayIconHost>();
                 services.AddSingleton<PerfMonitor.Windowing.INotificationService, Services.TrayNotificationService>();
                 services.AddHostedService<Services.MetricsSampler>();

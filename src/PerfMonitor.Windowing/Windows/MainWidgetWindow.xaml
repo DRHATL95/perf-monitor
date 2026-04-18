@@ -17,11 +17,26 @@
             CornerRadius="18"
             Padding="10"
             MouseLeftButtonDown="OnDragTrigger">
-        <StackPanel Orientation="Horizontal">
-            <c:PillControl x:Name="CpuPill" Label="CPU" Value="—" Margin="0,0,6,0"/>
-            <c:PillControl x:Name="RamPill" Label="RAM" Value="—" Margin="0,0,6,0"/>
-            <c:PillControl x:Name="GpuPill" Label="GPU" Value="—" Margin="0,0,6,0"/>
-            <c:PillControl x:Name="NetPill" Label="NET" Value="—"/>
+        <StackPanel>
+            <!-- Pill row (always visible) -->
+            <StackPanel Orientation="Horizontal">
+                <c:PillControl x:Name="CpuPill" Label="CPU" Value="—" Margin="0,0,6,0"/>
+                <c:PillControl x:Name="RamPill" Label="RAM" Value="—" Margin="0,0,6,0"/>
+                <c:PillControl x:Name="GpuPill" Label="GPU" Value="—" Margin="0,0,6,0"/>
+                <c:PillControl x:Name="NetPill" Label="NET" Value="—"/>
+            </StackPanel>
+
+            <!-- Expandable detail panel (below the pill row) -->
+            <Border x:Name="DetailContainer"
+                    Margin="0,8,0,0"
+                    Padding="0,2,0,2"
+                    Background="#141821"
+                    BorderBrush="#10FFFFFF"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Visibility="Collapsed">
+                <c:ProcessListPanel x:Name="DetailPanel"/>
+            </Border>
         </StackPanel>
     </Border>
 </Window>
