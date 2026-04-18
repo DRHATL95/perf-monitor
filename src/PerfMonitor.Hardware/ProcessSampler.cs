@@ -21,6 +21,7 @@ public sealed class ProcessSampler : IProcessSampler
     private readonly int _cpuCount = Math.Max(1, Environment.ProcessorCount);
     private readonly Dictionary<int, (TimeSpan cpu, DateTime ts)> _lastByPid = new();
     private readonly TimeSpan _interval;
+    private readonly GpuEnginePerProcess _gpu = new();
 
     private CancellationTokenSource? _cts;
     private Task? _loop;
@@ -75,10 +76,13 @@ public sealed class ProcessSampler : IProcessSampler
     {
         var now = DateTime.UtcNow;
         var processes = Process.GetProcesses();
+        // Snapshot GPU utilization by PID first; the dict may be empty on
+        // pre-1903 Windows or where the PDH category is unavailable.
+        var gpuByPid = _gpu.Read();
         try
         {
             // Per-name aggregation buckets.
-            var grouped = new Dictionary<string, (int count, double cpu, long ws)>(StringComparer.OrdinalIgnoreCase);
+            var grouped = new Dictionary<string, (int count, double cpu, long ws, double gpu)>(StringComparer.OrdinalIgnoreCase);
             var seenPids = new HashSet<int>(processes.Length);
 
             foreach (var p in processes)
@@ -113,13 +117,15 @@ public sealed class ProcessSampler : IProcessSampler
                     }
                     _lastByPid[p.Id] = (currentCpu, now);
 
+                    var gpuPct = gpuByPid.TryGetValue(p.Id, out var g) ? g : 0f;
+
                     if (grouped.TryGetValue(name, out var existing))
                     {
-                        grouped[name] = (existing.count + 1, existing.cpu + cpuPct, existing.ws + ws);
+                        grouped[name] = (existing.count + 1, existing.cpu + cpuPct, existing.ws + ws, existing.gpu + gpuPct);
                     }
                     else
                     {
-                        grouped[name] = (1, cpuPct, ws);
+                        grouped[name] = (1, cpuPct, ws, gpuPct);
                     }
                 }
                 finally { p.Dispose(); }
@@ -138,7 +144,8 @@ public sealed class ProcessSampler : IProcessSampler
                     Name: kv.Key,
                     Count: kv.Value.count,
                     CpuPercent: (float)Math.Min(kv.Value.cpu, 100.0 * _cpuCount),
-                    WorkingSetBytes: kv.Value.ws));
+                    WorkingSetBytes: kv.Value.ws,
+                    GpuPercent: (float)Math.Min(kv.Value.gpu, 100.0)));
             return list;
         }
         finally

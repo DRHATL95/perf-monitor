@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="LibreHardwareMonitorLib" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" />
   </ItemGroup>
 
   <PropertyGroup>

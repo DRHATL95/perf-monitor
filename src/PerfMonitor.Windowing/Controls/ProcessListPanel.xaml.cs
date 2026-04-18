@@ -13,6 +13,7 @@ public partial class ProcessListPanel : UserControl
 
     private static readonly Brush CpuAccent   = (Brush)new BrushConverter().ConvertFromString("#FF8A5A")!;
     private static readonly Brush RamAccent   = (Brush)new BrushConverter().ConvertFromString("#5AD0FF")!;
+    private static readonly Brush GpuAccent   = (Brush)new BrushConverter().ConvertFromString("#A58AFF")!;
     private static readonly Brush MutedAccent = (Brush)new BrushConverter().ConvertFromString("#9AA0B4")!;
 
     /// <summary>
@@ -86,20 +87,19 @@ public partial class ProcessListPanel : UserControl
                 HeaderTitle.Text = "Top CPU";
                 HeaderValue.Text = "%";
                 DeferredNote.Visibility = Visibility.Collapsed;
-                ProcessList.ItemsSource = Rank(snapshots, byCpu: true);
+                ProcessList.ItemsSource = Rank(snapshots, SortBy.Cpu);
                 break;
             case ProcessMetric.Ram:
                 HeaderTitle.Text = "Top RAM";
                 HeaderValue.Text = "MB";
                 DeferredNote.Visibility = Visibility.Collapsed;
-                ProcessList.ItemsSource = Rank(snapshots, byCpu: false);
+                ProcessList.ItemsSource = Rank(snapshots, SortBy.Ram);
                 break;
             case ProcessMetric.Gpu:
                 HeaderTitle.Text = "Top GPU";
-                HeaderValue.Text = "";
-                DeferredNote.Text = "Per-process GPU tracking isn't wired yet. Use Task Manager's GPU column for now.";
-                DeferredNote.Visibility = Visibility.Visible;
-                ProcessList.ItemsSource = Array.Empty<Row>();
+                HeaderValue.Text = "%";
+                DeferredNote.Visibility = Visibility.Collapsed;
+                ProcessList.ItemsSource = Rank(snapshots, SortBy.Gpu);
                 break;
             case ProcessMetric.Net:
                 HeaderTitle.Text = "Top NET";
@@ -111,7 +111,9 @@ public partial class ProcessListPanel : UserControl
         }
     }
 
-    private static IEnumerable<Row> Rank(IReadOnlyList<ProcessSnapshot>? source, bool byCpu)
+    private enum SortBy { Cpu, Ram, Gpu }
+
+    private static IEnumerable<Row> Rank(IReadOnlyList<ProcessSnapshot>? source, SortBy by)
     {
         if (source is null || source.Count == 0) return Array.Empty<Row>();
         var rows = new List<Row>(source.Count);
@@ -122,24 +124,31 @@ public partial class ProcessListPanel : UserControl
                 Name = p.Name,
                 Count = p.Count,
                 CpuPercent = p.CpuPercent,
-                WorkingSetMB = p.WorkingSetBytes / (1024f * 1024f)
+                WorkingSetMB = p.WorkingSetBytes / (1024f * 1024f),
+                GpuPercent = p.GpuPercent
             });
         }
-        return (byCpu
-                ? rows.OrderByDescending(r => r.CpuPercent)
-                : rows.OrderByDescending(r => r.WorkingSetMB))
-            .Take(TopN)
+        IEnumerable<Row> ordered = by switch
+        {
+            SortBy.Cpu => rows.OrderByDescending(r => r.CpuPercent),
+            SortBy.Ram => rows.OrderByDescending(r => r.WorkingSetMB),
+            SortBy.Gpu => rows.OrderByDescending(r => r.GpuPercent),
+            _ => rows
+        };
+        return ordered.Take(TopN)
             .Select(r =>
             {
                 r.Display = r.Count > 1 ? $"{r.Name} ({r.Count})" : r.Name;
-                r.FormattedValue = byCpu
-                    ? $"{r.CpuPercent:F0}%"
-                    : $"{r.WorkingSetMB:F0}";
-                r.AccentBrush = byCpu ? CpuAccent : RamAccent;
-                // Nothing interesting to rank if the value rounds to zero —
-                // dim it so the eye doesn't waste time on it.
-                if ((byCpu && r.CpuPercent < 0.5f) || (!byCpu && r.WorkingSetMB < 1f))
-                    r.AccentBrush = MutedAccent;
+                (r.FormattedValue, r.AccentBrush, var noise) = by switch
+                {
+                    SortBy.Cpu => ($"{r.CpuPercent:F0}%",     CpuAccent, r.CpuPercent   < 0.5f),
+                    SortBy.Ram => ($"{r.WorkingSetMB:F0}",    RamAccent, r.WorkingSetMB < 1f),
+                    SortBy.Gpu => ($"{r.GpuPercent:F0}%",     GpuAccent, r.GpuPercent   < 0.5f),
+                    _          => ("", (Brush)Brushes.White, true)
+                };
+                // Dim rows whose value effectively rounds to zero so the eye
+                // lands on the interesting ones.
+                if (noise) r.AccentBrush = MutedAccent;
                 return r;
             })
             .ToList();
@@ -152,6 +161,7 @@ public partial class ProcessListPanel : UserControl
         public int Count { get; set; }
         public float CpuPercent { get; set; }
         public float WorkingSetMB { get; set; }
+        public float GpuPercent { get; set; }
         public string Display { get; set; } = "";
         public string FormattedValue { get; set; } = "";
         public Brush AccentBrush { get; set; } = Brushes.White;

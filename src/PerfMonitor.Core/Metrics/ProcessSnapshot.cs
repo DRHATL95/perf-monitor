@@ -9,4 +9,5 @@ public record ProcessSnapshot(
     string Name,
     int Count,
     float CpuPercent,
-    long WorkingSetBytes);
+    long WorkingSetBytes,
+    float GpuPercent = 0f);

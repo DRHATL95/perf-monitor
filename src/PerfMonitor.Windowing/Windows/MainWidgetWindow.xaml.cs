@@ -117,9 +117,9 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
             _expandedMetric = metric;
             DetailContainer.Visibility = Visibility.Visible;
             DetailPanel.Show(metric, _latestProcessSnapshots);
-            // Start sampler only if the panel needs live data. GPU/NET are
-            // deferred so there's no data to fetch for them.
-            if (metric is ProcessMetric.Cpu or ProcessMetric.Ram)
+            // Start sampler only if the panel needs live data. NET is
+            // still deferred so no sampler needed for that one.
+            if (metric is ProcessMetric.Cpu or ProcessMetric.Ram or ProcessMetric.Gpu)
                 _processSampler?.Start();
             else
                 _processSampler?.Stop();
