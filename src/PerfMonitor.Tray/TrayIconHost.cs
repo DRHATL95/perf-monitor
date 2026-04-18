@@ -79,7 +79,11 @@ public sealed class TrayIconHost : IDisposable
 
     private void OnVmChanged(object? s, PropertyChangedEventArgs e)
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        var app = System.Windows.Application.Current;
+        if (app is null || app.Dispatcher.HasShutdownStarted) return;
+        // BeginInvoke is fire-and-forget — avoids blocking a background thread
+        // if the UI dispatcher is mid-shutdown.
+        app.Dispatcher.BeginInvoke(() =>
         {
             switch (e.PropertyName)
             {

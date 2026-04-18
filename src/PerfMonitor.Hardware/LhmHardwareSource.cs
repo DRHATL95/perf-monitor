@@ -27,10 +27,23 @@ public sealed class LhmHardwareSource : IHardwareSource
 
     public MetricsSnapshot Poll()
     {
-        foreach (var hw in _computer.Hardware)
+        try
         {
-            hw.Update();
-            foreach (var sub in hw.SubHardware) sub.Update();
+            foreach (var hw in _computer.Hardware)
+            {
+                hw.Update();
+                foreach (var sub in hw.SubHardware) sub.Update();
+            }
+        }
+        catch
+        {
+            // LibreHardwareMonitor sensors transiently throw after system
+            // sleep/resume while drivers reinitialize. Swallow and return
+            // a "health=SensorError" snapshot so the sampler loop stays
+            // alive; next tick usually recovers.
+            return new MetricsSnapshot(
+                DateTime.UtcNow, 0, null, 0, 0, 0, null, 0, 0, 0, 0,
+                Array.Empty<FanReading>(), MetricsHealth.SensorError);
         }
 
         float cpuLoad = 0, gpuLoad = 0, gpuVramUsed = 0, gpuVramTotal = 0, netDown = 0, netUp = 0;
@@ -86,5 +99,16 @@ public sealed class LhmHardwareSource : IHardwareSource
             _elevated ? MetricsHealth.Ok : MetricsHealth.TempsUnavailable);
     }
 
-    public void Dispose() => _computer.Close();
+    public void Dispose()
+    {
+        // _computer.Close() can block indefinitely after a suspend/resume if
+        // a driver is wedged. Cap it at 1s — if the kernel is confused we
+        // accept a leaked handle to guarantee the app can exit.
+        try
+        {
+            var close = Task.Run(() => _computer.Close());
+            close.Wait(TimeSpan.FromSeconds(1));
+        }
+        catch { /* best-effort */ }
+    }
 }

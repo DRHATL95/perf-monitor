@@ -198,12 +198,23 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _fullscreenDetector?.Dispose();
-        _topmostGuard?.Dispose();
-        _hotkeyService?.Dispose();
-        _host?.StopAsync().GetAwaiter().GetResult();
-        _host?.Dispose();
+        // Hard-capped shutdown: try to dispose everything cleanly, but
+        // never wait more than ~4 s total. A wedged hardware driver post
+        // sleep/resume must not prevent the process from exiting.
+        var cleanup = Task.Run(() =>
+        {
+            try { _fullscreenDetector?.Dispose(); } catch { }
+            try { _topmostGuard?.Dispose(); }       catch { }
+            try { _hotkeyService?.Dispose(); }      catch { }
+            try { _host?.StopAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult(); } catch { }
+            try { _host?.Dispose(); } catch { }
+        });
+        cleanup.Wait(TimeSpan.FromSeconds(4));
         base.OnExit(e);
+        // Belt-and-suspenders: if any finalizer or native handle is still
+        // holding the CLR up, force termination. Managed state is flushed
+        // in the cleanup Task above; this only affects stragglers.
+        Environment.Exit(0);
     }
 }
 

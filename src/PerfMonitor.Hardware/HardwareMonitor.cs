@@ -42,25 +42,39 @@ public sealed class HardwareMonitor : IDisposable
     {
         while (!ct.IsCancellationRequested)
         {
-            var raw = _source.Poll();
-            var smoothed = raw with
+            try
             {
-                NetDownMBps = _netDown.Smooth(raw.NetDownMBps),
-                NetUpMBps   = _netUp.Smooth(raw.NetUpMBps),
-                GpuLoadPercent = _gpuLoad.Smooth(raw.GpuLoadPercent)
-            };
-            await _channel.Writer.WriteAsync(smoothed, ct);
+                var raw = _source.Poll();
+                var smoothed = raw with
+                {
+                    NetDownMBps = _netDown.Smooth(raw.NetDownMBps),
+                    NetUpMBps   = _netUp.Smooth(raw.NetUpMBps),
+                    GpuLoadPercent = _gpuLoad.Smooth(raw.GpuLoadPercent)
+                };
+                await _channel.Writer.WriteAsync(smoothed, ct);
+            }
+            catch (OperationCanceledException) { break; }
+            catch
+            {
+                // Transient poll/write failure — don't let it tear down the
+                // loop. Next tick tries again.
+            }
+
             try { await Task.Delay(IntervalMs, ct); }
             catch (OperationCanceledException) { break; }
         }
+        // Complete the channel so any consumer (MetricsSampler.await-foreach)
+        // unblocks promptly instead of hanging on shutdown.
+        _channel.Writer.TryComplete();
     }
 
     public void Dispose()
     {
-        _cts?.Cancel();
-        try { _loop?.Wait(TimeSpan.FromSeconds(2)); } catch { }
-        _cts?.Dispose();
+        try { _cts?.Cancel(); } catch { }
+        try { _loop?.Wait(TimeSpan.FromSeconds(1)); } catch { }
+        try { _cts?.Dispose(); } catch { }
         _channel.Writer.TryComplete();
-        _source.Dispose();
+        // Source.Dispose() has its own bounded timeout; no need to double-wrap.
+        try { _source.Dispose(); } catch { }
     }
 }
