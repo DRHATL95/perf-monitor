@@ -145,12 +145,14 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Click-through is enabled if the user set it as default OR the mode is
-    /// OnTop (where click-through is almost always what you want over a game).
+    /// Click-through is driven solely by the persistent setting. Display mode
+    /// (Floating vs OnTop) controls visibility + topmost; it does NOT imply
+    /// click-through. Users who want "over my game AND ignoring mouse" tick
+    /// both "OnTop" mode and "Click-through by default" in Settings.
     /// The hotkey can temporarily override this during a session.
     /// </summary>
     private static bool EffectiveClickThrough(AppSettings s) =>
-        s.Behavior.ClickThroughByDefault || s.Display.Mode == DisplayMode.OnTop;
+        s.Behavior.ClickThroughByDefault;
 
     private void SavePosition(int x, int y)
     {

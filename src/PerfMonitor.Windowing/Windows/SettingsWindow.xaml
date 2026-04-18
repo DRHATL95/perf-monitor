@@ -35,7 +35,7 @@
                     <CheckBox Content="Click-through by default (mouse passes through widget)"
                               IsChecked="{Binding ClickThroughByDefault}" Margin="0,4"/>
                     <TextBlock Margin="22,0,0,0" FontSize="10" Opacity="0.55" TextWrapping="Wrap"
-                               Text="Press Ctrl+Alt+M any time to toggle click-through. OnTop mode enables it automatically."/>
+                               Text="Press Ctrl+Alt+M any time to toggle click-through. Mode (Floating / OnTop) is independent — combine OnTop + Click-through for a gaming overlay."/>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Thresholds">
