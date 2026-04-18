@@ -77,7 +77,8 @@ public partial class App : Application
                 services.AddSingleton<IWidgetWindow>(sp =>
                     new PerfMonitor.Windowing.Windows.MainWidgetWindow(
                         sp.GetRequiredService<MainViewModel>(),
-                        sp.GetRequiredService<PerfMonitor.Core.Metrics.IProcessSampler>()));
+                        sp.GetRequiredService<PerfMonitor.Core.Metrics.IProcessSampler>(),
+                        sp.GetRequiredService<PerfMonitor.Windowing.INotificationService>()));
                 services.AddSingleton<PerfMonitor.Tray.TrayIconHost>();
                 services.AddSingleton<PerfMonitor.Windowing.INotificationService, Services.TrayNotificationService>();
                 services.AddHostedService<Services.MetricsSampler>();

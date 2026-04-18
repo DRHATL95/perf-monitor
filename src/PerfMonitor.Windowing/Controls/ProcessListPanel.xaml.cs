@@ -1,6 +1,8 @@
 using PerfMonitor.Core.Metrics;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace PerfMonitor.Windowing.Controls;
@@ -13,7 +15,67 @@ public partial class ProcessListPanel : UserControl
     private static readonly Brush RamAccent   = (Brush)new BrushConverter().ConvertFromString("#5AD0FF")!;
     private static readonly Brush MutedAccent = (Brush)new BrushConverter().ConvertFromString("#9AA0B4")!;
 
+    /// <summary>
+    /// Raised when the user confirms "End task" on a row. Consumers
+    /// (MainWidgetWindow) should emit any notification toast. The panel
+    /// itself only brokers the action — it has no tray / notification
+    /// dependency.
+    /// </summary>
+    public event EventHandler<ProcessKillResult>? ProcessKilled;
+
     public ProcessListPanel() => InitializeComponent();
+
+    private void OnRowRightClick(object sender, MouseButtonEventArgs e)
+    {
+        // Default WPF behavior already opens the ContextMenu on right-click
+        // when Background != null. This handler is a placeholder for any
+        // future "select row on right-click" behavior.
+    }
+
+    private void OnEndTaskClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem mi) return;
+        if (mi.DataContext is not Row row) return;
+
+        var confirm = MessageBox.Show(
+            row.Count > 1
+                ? $"End all {row.Count} instances of {row.Name}?\n\nUnsaved work will be lost."
+                : $"End task {row.Name}?\n\nUnsaved work will be lost.",
+            "PerfMonitor",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        var result = KillByName(row.Name);
+        ProcessKilled?.Invoke(this, result);
+    }
+
+    private static ProcessKillResult KillByName(string name)
+    {
+        var killed = 0;
+        var denied = 0;
+        var failed = 0;
+
+        Process[] processes;
+        try { processes = Process.GetProcessesByName(name); }
+        catch { return new ProcessKillResult(name, 0, 0, 1); }
+
+        foreach (var p in processes)
+        {
+            try
+            {
+                p.Kill(entireProcessTree: false);
+                p.WaitForExit(500);
+                killed++;
+            }
+            catch (System.ComponentModel.Win32Exception) { denied++; }
+            catch (InvalidOperationException) { /* already exited */ }
+            catch { failed++; }
+            finally { try { p.Dispose(); } catch { } }
+        }
+        return new ProcessKillResult(name, killed, denied, failed);
+    }
 
     /// <summary>Switch which metric we're drilling into and update the list.</summary>
     public void Show(ProcessMetric metric, IReadOnlyList<ProcessSnapshot>? snapshots)
@@ -93,5 +155,23 @@ public partial class ProcessListPanel : UserControl
         public string Display { get; set; } = "";
         public string FormattedValue { get; set; } = "";
         public Brush AccentBrush { get; set; } = Brushes.White;
+    }
+}
+
+/// <summary>
+/// Summary of what an "End task" action actually managed to do.
+/// Emitted by <see cref="ProcessListPanel.ProcessKilled"/>.
+/// </summary>
+public sealed record ProcessKillResult(string Name, int Killed, int Denied, int Failed)
+{
+    public string ToToastMessage()
+    {
+        if (Killed == 0 && Denied == 0 && Failed == 0)
+            return $"{Name}: no running instances.";
+        var parts = new List<string>();
+        if (Killed > 0) parts.Add($"{Killed} ended");
+        if (Denied > 0) parts.Add($"{Denied} denied (try running as admin)");
+        if (Failed > 0) parts.Add($"{Failed} failed");
+        return $"{Name}: {string.Join(", ", parts)}.";
     }
 }

@@ -18,6 +18,7 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
 
     private readonly MainViewModel _vm;
     private readonly IProcessSampler? _processSampler;
+    private readonly INotificationService? _notify;
 
     private ProcessMetric? _expandedMetric;
     private IReadOnlyList<ProcessSnapshot>? _latestProcessSnapshots;
@@ -26,11 +27,14 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
     // status transitions INTO Crit — not on every tick while it remains Crit.
     private MetricStatus _lastCpuStatus = MetricStatus.Ok;
 
-    public MainWidgetWindow(MainViewModel vm, IProcessSampler? processSampler = null)
+    public MainWidgetWindow(MainViewModel vm, IProcessSampler? processSampler = null, INotificationService? notify = null)
     {
         InitializeComponent();
         _vm = vm;
         _processSampler = processSampler;
+        _notify = notify;
+        DetailPanel.ProcessKilled += (_, result) =>
+            _notify?.Show("PerfMonitor — End task", result.ToToastMessage());
 
         CpuPill.AccentBrush = CpuAccent;
         RamPill.AccentBrush = RamAccent;

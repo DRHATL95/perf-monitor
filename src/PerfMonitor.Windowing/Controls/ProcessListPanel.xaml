@@ -32,11 +32,16 @@
         <ItemsControl x:Name="ProcessList" Margin="10,0,10,6">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Grid Margin="0,1">
+                    <Grid Margin="0,1" Background="Transparent" MouseRightButtonUp="OnRowRightClick">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="70"/>
                         </Grid.ColumnDefinitions>
+                        <Grid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="End task" Click="OnEndTaskClick"/>
+                            </ContextMenu>
+                        </Grid.ContextMenu>
                         <TextBlock Grid.Column="0"
                                    Text="{Binding Display}"
                                    FontSize="11"
