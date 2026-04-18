@@ -3,6 +3,7 @@
 Lightweight always-on desktop performance widget for Windows 11 (Windows 10 fallback).
 Displays live CPU / RAM / GPU load, network throughput, and CPU/GPU temperatures via
 a transparent glassmorphic pill-row widget and four live-rendered system-tray icons.
+Click a pill to drill into the top processes driving that metric.
 
 ## Quick start
 
@@ -10,23 +11,63 @@ a transparent glassmorphic pill-row widget and four live-rendered system-tray ic
     cd perf-monitor
     dotnet run --project src/PerfMonitor.App
 
-## Publish a single-file exe
+## Build a distributable exe
 
-    dotnet publish src/PerfMonitor.App -c Release -r win-x64 --self-contained \
-      -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+    ./build.ps1               # default: multi-file self-contained (AV-safe)
+    ./build.ps1 -SingleFile   # single ~160 MB bundle (may trigger antivirus)
+    ./build.ps1 -FrameworkDependent  # tiny exe, requires .NET 8 runtime installed
 
-Output: `src/PerfMonitor.App/bin/Release/net8.0-windows/win-x64/publish/PerfMonitor.exe`.
+Default output: `publish/PerfMonitor.exe` + sibling DLLs (~165 MB folder, no
+runtime install needed on target).
+
+## Features
+
+- **Floating widget** — transparent, draggable, glassmorphic pill row (CPU / RAM /
+  GPU / NET). Position and monitor persist across restarts.
+- **OnTop mode** — always-visible over fullscreen apps with periodic topmost
+  re-assert for games that briefly push ahead in Z-order. Combine with
+  click-through for a gaming overlay.
+- **Click-through** — mouse events fall through the widget to apps underneath.
+  Toggle with `Ctrl+Alt+M` or set as default in Settings.
+- **Live tray icons** — four 16×16 icons render current values directly in the
+  system tray; right-click any icon for Show/Hide, Settings, or Exit.
+- **Process drill-down** — click any pill to expand a panel showing the top
+  processes by that metric. Right-click a row for "End task". Auto-opens on
+  CPU when load crosses the Crit threshold.
+- **Auto-hide on fullscreen** — Floating mode fades the widget out when another
+  app goes fullscreen (toggleable).
+- **Per-monitor safety** — if a saved position becomes invalid (disconnected
+  monitor), the widget falls back to the primary display instead of opening
+  off-screen.
 
 ## Settings
 
-JSON file at `%APPDATA%\PerfMonitor\settings.json`. Corrupt file → backed up to `.bak` and defaults restored.
+JSON file at `%APPDATA%\PerfMonitor\settings.json`. All changes apply live on
+Apply — no restart required. Corrupt file → backed up to `.bak` and defaults
+restored. A crash log (unhandled exceptions) writes to
+`%APPDATA%\PerfMonitor\crash.log` if anything goes wrong.
 
 ## Admin elevation
 
-Required only for CPU/GPU temperatures. App starts unelevated; temps show `—`.
+Required only for CPU/GPU temperatures (LibreHardwareMonitor loads a kernel
+driver for MSR/SMBus access). App starts unelevated; temps display `—`.
+Per-process "End task" on elevated targets also needs admin.
 
 ## Hotkeys
 
 - **Ctrl+Alt+M** — toggle click-through (widget stops catching mouse clicks)
 
-See `docs/superpowers/specs/2026-04-17-perf-monitor-design.md` for full design.
+## Project layout
+
+    src/
+      PerfMonitor.Core/        records, view models, settings
+      PerfMonitor.Hardware/    LibreHardwareMonitor + process + GPU-engine samplers
+      PerfMonitor.Windowing/   WPF windows, controls, behaviors
+      PerfMonitor.Tray/        system-tray icons + context menu
+      PerfMonitor.Startup/     Task Scheduler autostart
+      PerfMonitor.App/         composition root + DI
+    tests/                     xUnit + FluentAssertions
+
+See [`docs/superpowers/specs/2026-04-17-perf-monitor-design.md`](docs/superpowers/specs/2026-04-17-perf-monitor-design.md)
+for the original design. [`CLAUDE.md`](CLAUDE.md) has the current
+source-of-truth conventions.

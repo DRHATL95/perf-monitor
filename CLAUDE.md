@@ -24,17 +24,26 @@ The authoritative design lives in [`docs/superpowers/specs/2026-04-17-perf-monit
 PerfMonitor.sln
 src/
   PerfMonitor.App/           WPF entry, App.xaml, DI composition root
-  PerfMonitor.Core/          MainViewModel, MetricsSnapshot, settings
-  PerfMonitor.Hardware/      LibreHardwareMonitor wrapper
-  PerfMonitor.Windowing/     WPF windows, AppBar interop, hotkeys
-  PerfMonitor.Tray/          Tray icon rendering
+  PerfMonitor.Core/          MainViewModel, MetricsSnapshot, ProcessSnapshot,
+                             IProcessSampler, settings
+  PerfMonitor.Hardware/      LibreHardwareMonitor wrapper, ProcessSampler,
+                             GpuEnginePerProcess (PDH "GPU Engine" reader)
+  PerfMonitor.Windowing/     WPF windows, PillControl, ProcessListPanel,
+                             FullscreenDetector, HotkeyService, TopmostGuard,
+                             WindowPositionPersistence, INotificationService
+  PerfMonitor.Tray/          Tray icon rendering + context menu
   PerfMonitor.Startup/       Task Scheduler registration
 tests/
   PerfMonitor.<Layer>.Tests/
 docs/
-  superpowers/specs/         Design specs (authoritative)
+  superpowers/specs/         Design specs (historical — see §20 amendments)
   qa/manual-test-plan.md     Manual QA checklist
+build.ps1 / build.cmd        Produce publish/ folder (multi-file self-contained)
 ```
+
+The Windowing project does NOT reference Hardware or Tray — both are peers
+under App. Cross-layer contracts (`IProcessSampler`, `INotificationService`)
+live in Core or Windowing respectively so we stay acyclic.
 
 Each subproject must be independently testable. `PerfMonitor.App` is the only project that wires them together.
 
@@ -51,16 +60,19 @@ dotnet test
 # Run the app (debug)
 dotnet run --project src/PerfMonitor.App
 
-# Publish single-file self-contained exe (~80 MB)
-dotnet publish src/PerfMonitor.App -c Release -r win-x64 --self-contained \
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+# Produce the distributable exe (AV-safe multi-file self-contained)
+./build.ps1
+
+# Other build variants:
+./build.ps1 -SingleFile          # one ~160 MB exe (antivirus-risky without signing)
+./build.ps1 -FrameworkDependent  # tiny exe, requires .NET 8 Desktop Runtime
 ```
 
 ## Key Design Constraints
 
-These are non-negotiable — they come from the approved spec:
+These are non-negotiable:
 
-1. **Single MainViewModel** shared by floating widget, docked bar, and tray icons. One source of truth; three render paths.
+1. **Single MainViewModel** shared by the widget window and tray icons. One source of truth; multiple render paths.
 2. **Sensor polling runs on a dedicated background thread.** Never on the UI dispatcher. Snapshots published via `Channel<MetricsSnapshot>(capacity=1, FullMode=DropOldest)`.
 3. **`DestroyIcon` discipline.** Every tray icon swap MUST destroy the previous `HICON`. Forgetting this leaks GDI handles and kills the process within hours.
 4. **AppBar unregister must be bulletproof.** `SHAppBarMessage(ABM_REMOVE)` must fire on exit, mode-switch, crash handler. A leaked appbar permanently shrinks the user's work area until reboot.

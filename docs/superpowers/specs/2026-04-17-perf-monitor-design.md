@@ -283,3 +283,53 @@ Phases 3 + 4 can run in parallel; phases 5 + 6 can run in parallel after 3 lands
 - Whether to also support a **widget-style mini graph** (60-sec sparkline per metric) in v2
 - Whether to integrate **PresentMon** for game framerate in a future release
 - Whether to publish as an **MSIX package** in the Microsoft Store once stabilized
+
+## 20. Post-v0.1 Amendments
+
+This spec was written before implementation; several decisions evolved once
+we shipped and started using the widget. The originals above are preserved
+for historical context, but current behavior is what's in the code.
+
+- **Display modes pruned from 5 to 2** (commit `53dc3a8`). `DockedTop`/
+  `DockedBottom`/`DockedLeft`/`DockedRight` removed along with
+  `AppBarService` and the `SHAppBarMessage` interop. `DisplayMode` now
+  enumerates `Floating` and `OnTop` only. OnTop is a behavior overlay on
+  the same floating window — periodic `SetWindowPos(HWND_TOPMOST)` via
+  `TopmostGuard`, no window recreation on mode switch.
+- **Single-file publish replaced with multi-file self-contained** (commit
+  `53dc3a8`). The self-extracting single-file exe was heuristically
+  flagged by antivirus engines; a plain folder of DLLs + a thin
+  `PerfMonitor.exe` launcher ships the same bytes without the
+  "dropper-shaped" signature. `build.ps1 -SingleFile` retains the old
+  behavior for when code-signing is available.
+- **Brand icon "Pill Cluster"** (commit `0dc1c6c`) — see
+  `src/PerfMonitor.App/Assets/app-icon.svg`.
+- **Live-apply for settings** (commit `5ee9abe`). `JsonSettingsStore.Save`
+  fires `SettingsChanged` synchronously so Apply takes effect without a
+  restart. FileSystemWatcher still covers external edits. Mode change
+  applies live (behavior swap, not window recreation) so the earlier
+  "restart required for mode" caveat is gone.
+- **Click-through decoupled from OnTop** (commit `8fe49e0`). The two
+  concepts are now independent toggles; users combine them explicitly.
+- **Position + monitor persistence** (commit `687246c`). `DisplaySettings.Position`
+  is now wired end-to-end with monitor-bounds validation so a
+  disconnected secondary display can't orphan the widget off-screen.
+- **Process drill-down panel** (commits `c423498`, `4c5e085`, `902b280`,
+  `a5cf997`). Clicking a pill expands a top-8 processes list ranked by
+  that metric. CPU/RAM via `Process.GetProcesses`, GPU via the
+  Windows "GPU Engine" performance counter. Right-click a row to End
+  task. Panel auto-opens on CPU when load crosses the Crit threshold.
+- **Shutdown hardening** (commit `2fcfc30`). Shutdown path is now
+  bounded to ~4 seconds via a cleanup Task and `Environment.Exit(0)`
+  fallback. LibreHardwareMonitor `Computer.Close()` capped at 1 s so a
+  wedged sensor driver post sleep/resume can't stall exit.
+- **Status-on-Apply** (commit `6cdb6ed`). Settings window shows an
+  inline "Saved ✓" label alongside the system toast, since
+  `Shell_NotifyIcon` balloons are silently suppressed on Win10/11
+  without a registered AUMID.
+
+§9 project layout is still accurate except for the absence of a
+`PerfMonitor.Windowing/Docking/` folder (removed) and the addition of
+`GpuEnginePerProcess.cs` / `ProcessSampler.cs` in the Hardware project
+and `ProcessListPanel.xaml` + `WindowPositionPersistence.cs` in
+Windowing.
