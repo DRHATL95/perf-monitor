@@ -32,6 +32,12 @@ public record BehaviorSettings
     public string[] FullscreenWhitelist { get; init; } = [];
     public string ClickThroughHotkey { get; init; } = "Ctrl+Alt+M";
     public bool StartWithWindows { get; init; } = true;
+    /// <summary>
+    /// When true, the widget starts click-through (mouse events pass through
+    /// to whatever is underneath). OnTop mode forces this on regardless.
+    /// Ctrl+Alt+M still toggles live.
+    /// </summary>
+    public bool ClickThroughByDefault { get; init; } = false;
 }
 
 public record ThresholdSettings

@@ -28,25 +28,48 @@ public sealed class HotkeyService : IDisposable
         User32Hotkey.RegisterHotKey(hwnd, HotkeyId, mods, vk);
     }
 
+    /// <summary>
+    /// Current effective click-through state. True = mouse events fall
+    /// through the widget to whatever's underneath.
+    /// </summary>
+    public bool IsClickThrough => _clickThrough;
+
+    /// <summary>
+    /// Fires whenever click-through state changes (hotkey OR programmatic).
+    /// Listen to this to surface feedback (toast, icon change, etc.).
+    /// </summary>
+    public event EventHandler<bool>? ClickThroughChanged;
+
+    /// <summary>
+    /// Programmatically set click-through state. No-ops if already in that state.
+    /// </summary>
+    public void SetClickThrough(bool on)
+    {
+        if (_clickThrough == on) return;
+        ApplyClickThrough(on);
+    }
+
     private IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg == User32Hotkey.WM_HOTKEY && wParam.ToInt32() == HotkeyId)
         {
-            Toggle();
+            ApplyClickThrough(!_clickThrough);
             handled = true;
         }
         return IntPtr.Zero;
     }
 
-    private void Toggle()
+    private void ApplyClickThrough(bool on)
     {
         var hwnd = new WindowInteropHelper(_target).Handle;
+        if (hwnd == IntPtr.Zero) return;
         var ex = User32Hotkey.GetWindowLong(hwnd, User32Hotkey.GWL_EXSTYLE);
-        _clickThrough = !_clickThrough;
-        var updated = _clickThrough
+        var updated = on
             ? ex | User32Hotkey.WS_EX_TRANSPARENT | User32Hotkey.WS_EX_LAYERED
             : ex & ~User32Hotkey.WS_EX_TRANSPARENT;
         User32Hotkey.SetWindowLong(hwnd, User32Hotkey.GWL_EXSTYLE, updated);
+        _clickThrough = on;
+        ClickThroughChanged?.Invoke(this, on);
     }
 
     public void Dispose()

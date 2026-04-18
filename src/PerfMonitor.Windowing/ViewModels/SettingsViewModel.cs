@@ -12,6 +12,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private int refreshIntervalMs;
     [ObservableProperty] private bool autoHideOnFullscreen;
     [ObservableProperty] private bool startWithWindows;
+    [ObservableProperty] private bool clickThroughByDefault;
     [ObservableProperty] private float cpuWarnPercent;
     [ObservableProperty] private float cpuCritPercent;
     [ObservableProperty] private float cpuTempWarnC;
@@ -26,6 +27,7 @@ public partial class SettingsViewModel : ObservableObject
         RefreshIntervalMs = s.Display.RefreshIntervalMs;
         AutoHideOnFullscreen = s.Behavior.AutoHideOnFullscreen;
         StartWithWindows = s.Behavior.StartWithWindows;
+        ClickThroughByDefault = s.Behavior.ClickThroughByDefault;
         CpuWarnPercent = s.Thresholds.CpuWarnPercent;
         CpuCritPercent = s.Thresholds.CpuCritPercent;
         CpuTempWarnC = s.Thresholds.CpuTempWarnC;
@@ -38,7 +40,12 @@ public partial class SettingsViewModel : ObservableObject
         var updated = current with
         {
             Display = current.Display with { Mode = Mode, Opacity = Opacity, RefreshIntervalMs = RefreshIntervalMs },
-            Behavior = current.Behavior with { AutoHideOnFullscreen = AutoHideOnFullscreen, StartWithWindows = StartWithWindows },
+            Behavior = current.Behavior with
+            {
+                AutoHideOnFullscreen = AutoHideOnFullscreen,
+                StartWithWindows = StartWithWindows,
+                ClickThroughByDefault = ClickThroughByDefault
+            },
             Thresholds = current.Thresholds with
             {
                 CpuWarnPercent = CpuWarnPercent,

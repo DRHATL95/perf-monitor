@@ -17,6 +17,7 @@ public partial class App : Application
     private PerfMonitor.Windowing.Behaviors.FullscreenDetector? _fullscreenDetector;
     private PerfMonitor.Windowing.Behaviors.HotkeyService? _hotkeyService;
     private PerfMonitor.Windowing.Behaviors.TopmostGuard? _topmostGuard;
+    private PerfMonitor.Windowing.Behaviors.WindowPositionPersistence? _positionPersistence;
     private IWidgetWindow? _widget;
     private DisplayMode _activeMode;
 
@@ -100,7 +101,16 @@ public partial class App : Application
         _widget = Services.GetRequiredService<IWidgetWindow>();
         _activeMode = currentSettings.Display.Mode;
         _widget.Show();
-        if (_widget is Window ww) ww.Opacity = currentSettings.Display.Opacity;
+        if (_widget is Window ww)
+        {
+            ww.Opacity = currentSettings.Display.Opacity;
+            // Restore last-known position (validated against current monitors).
+            PerfMonitor.Windowing.Behaviors.WindowPositionPersistence.Restore(
+                ww, currentSettings.Display.Position.X, currentSettings.Display.Position.Y);
+            // Persist on move (coalesced so drag events don't thrash disk).
+            _positionPersistence = new PerfMonitor.Windowing.Behaviors.WindowPositionPersistence(
+                ww, SavePosition);
+        }
 
         var tray = Services.GetRequiredService<PerfMonitor.Tray.TrayIconHost>();
         tray.ExitRequested += (_, _) => Shutdown();
@@ -119,11 +129,53 @@ public partial class App : Application
         ApplyModeBehavior(currentSettings);
 
         if (_widget is Window hw)
+        {
             _hotkeyService = new PerfMonitor.Windowing.Behaviors.HotkeyService(hw, ModifierKeys.Control | ModifierKeys.Alt, Key.M);
+            _hotkeyService.ClickThroughChanged += OnClickThroughChanged;
+            // Apply the effective click-through state for the boot configuration.
+            _hotkeyService.SetClickThrough(EffectiveClickThrough(currentSettings));
+        }
 
         // Live-apply settings whenever the settings file changes (via Save()
         // in-process or FileSystemWatcher for external edits).
         Services.GetRequiredService<ISettingsStore>().SettingsChanged += OnSettingsChanged;
+    }
+
+    /// <summary>
+    /// Click-through is enabled if the user set it as default OR the mode is
+    /// OnTop (where click-through is almost always what you want over a game).
+    /// The hotkey can temporarily override this during a session.
+    /// </summary>
+    private static bool EffectiveClickThrough(AppSettings s) =>
+        s.Behavior.ClickThroughByDefault || s.Display.Mode == DisplayMode.OnTop;
+
+    private void SavePosition(int x, int y)
+    {
+        try
+        {
+            var store = Services.GetRequiredService<ISettingsStore>();
+            var current = store.Load();
+            // Skip the write if nothing changed — avoids the FileSystemWatcher
+            // event loop firing ApplyLive on every drag end.
+            if (current.Display.Position.X == x && current.Display.Position.Y == y) return;
+            store.Save(current with
+            {
+                Display = current.Display with { Position = new Position(x, y) }
+            });
+        }
+        catch { /* best-effort — a transient save miss is non-fatal */ }
+    }
+
+    private void OnClickThroughChanged(object? sender, bool on)
+    {
+        try
+        {
+            var notify = Services.GetRequiredService<PerfMonitor.Windowing.INotificationService>();
+            notify.Show("PerfMonitor", on
+                ? "Click-through ON — widget ignores mouse (Ctrl+Alt+M to toggle)"
+                : "Click-through OFF — widget accepts clicks");
+        }
+        catch { /* toast is best-effort */ }
     }
 
     private void OnSettingsChanged(object? sender, AppSettings s)
@@ -149,6 +201,10 @@ public partial class App : Application
         if (_widget is Window w) w.Opacity = s.Display.Opacity;
 
         ApplyModeBehavior(s);
+
+        // Click-through: re-derive from current settings + mode. The hotkey can
+        // still temporarily override this afterward.
+        _hotkeyService?.SetClickThrough(EffectiveClickThrough(s));
 
         // Start-with-Windows
         try
@@ -203,9 +259,10 @@ public partial class App : Application
         // sleep/resume must not prevent the process from exiting.
         var cleanup = Task.Run(() =>
         {
-            try { _fullscreenDetector?.Dispose(); } catch { }
-            try { _topmostGuard?.Dispose(); }       catch { }
-            try { _hotkeyService?.Dispose(); }      catch { }
+            try { _fullscreenDetector?.Dispose(); }  catch { }
+            try { _topmostGuard?.Dispose(); }        catch { }
+            try { _positionPersistence?.Dispose(); } catch { }
+            try { _hotkeyService?.Dispose(); }       catch { }
             try { _host?.StopAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult(); } catch { }
             try { _host?.Dispose(); } catch { }
         });

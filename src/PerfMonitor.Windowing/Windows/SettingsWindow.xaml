@@ -32,6 +32,10 @@
                               IsChecked="{Binding AutoHideOnFullscreen}" Margin="0,4"/>
                     <CheckBox Content="Start with Windows"
                               IsChecked="{Binding StartWithWindows}" Margin="0,4"/>
+                    <CheckBox Content="Click-through by default (mouse passes through widget)"
+                              IsChecked="{Binding ClickThroughByDefault}" Margin="0,4"/>
+                    <TextBlock Margin="22,0,0,0" FontSize="10" Opacity="0.55" TextWrapping="Wrap"
+                               Text="Press Ctrl+Alt+M any time to toggle click-through. OnTop mode enables it automatically."/>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Thresholds">
