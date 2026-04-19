@@ -117,7 +117,7 @@ public partial class App : Application
         }
 
         var tray = Services.GetRequiredService<PerfMonitor.Tray.TrayIconHost>();
-        tray.ExitRequested += (_, _) => Shutdown();
+        tray.ExitRequested += OnExitRequestedFromTray;
         tray.ToggleVisibilityRequested += (_, _) =>
         {
             if (_widget is Window w)
@@ -258,25 +258,52 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// Exit request from the tray context menu. We give WPF one render
+    /// pass to close the menu cleanly and hide the widget + tray icons
+    /// so the user sees immediate visual feedback, THEN call Shutdown
+    /// on a lower-priority dispatcher queue so the render work completes
+    /// before the dispatcher freezes.
+    /// </summary>
+    private void OnExitRequestedFromTray(object? sender, EventArgs e)
+    {
+        // Immediate visual feedback — widget and tray icons disappear
+        // before any (potentially slow) cleanup starts. Perceived latency
+        // is dominated by visible state, not by handle reclamation.
+        if (_widget is Window w) w.Hide();
+        try { Services.GetRequiredService<PerfMonitor.Tray.TrayIconHost>().Dispose(); } catch { }
+
+        // Background priority runs after the Render pass that closes the
+        // context menu, so the menu animates out cleanly before Shutdown
+        // begins freezing the dispatcher.
+        Dispatcher.BeginInvoke(new Action(Shutdown),
+            System.Windows.Threading.DispatcherPriority.Background);
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
-        // Hard-capped shutdown: try to dispose everything cleanly, but
-        // never wait more than ~4 s total. A wedged hardware driver post
-        // sleep/resume must not prevent the process from exiting.
-        var cleanup = Task.Run(() =>
+        // Synchronous cleanup: hotkey release is cheap and prevents a
+        // stale Ctrl+Alt+M registration from briefly lingering if the user
+        // relaunches immediately.
+        try { _hotkeyService?.Dispose(); } catch { }
+
+        // Fire-and-forget the slow disposals — sensor driver close and
+        // HardwareMonitor loop join can each take ~1 s on a wedged driver
+        // post-suspend. Environment.Exit below reaps stragglers, so we
+        // don't block the UI thread waiting for them.
+        _ = Task.Run(() =>
         {
             try { _fullscreenDetector?.Dispose(); }  catch { }
             try { _topmostGuard?.Dispose(); }        catch { }
             try { _positionPersistence?.Dispose(); } catch { }
-            try { _hotkeyService?.Dispose(); }       catch { }
-            try { _host?.StopAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult(); } catch { }
-            try { _host?.Dispose(); } catch { }
+            try { _host?.Dispose(); }                catch { }
         });
-        cleanup.Wait(TimeSpan.FromSeconds(4));
+
         base.OnExit(e);
-        // Belt-and-suspenders: if any finalizer or native handle is still
-        // holding the CLR up, force termination. Managed state is flushed
-        // in the cleanup Task above; this only affects stragglers.
+        // Small grace window for WPF to finalize window tear-down
+        // rendering before the process dies. 80 ms is imperceptible
+        // to users but enough for the final render pass.
+        Thread.Sleep(80);
         Environment.Exit(0);
     }
 }
