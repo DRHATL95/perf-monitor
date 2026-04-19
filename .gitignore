@@ -1,25 +1,94 @@
 # Brainstorm / superpowers session artifacts
 .superpowers/
 
+# Claude / agent artifacts
+.claude/
+CLAUDE.local.md
+
 # Build outputs
 [Bb]in/
 [Oo]bj/
 [Oo]ut/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+bld/
+artifacts/
 
-# VS / Rider / VSCode
+# Publish output (can be 160+ MB per build)
+publish/
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+.nuget/
+
+# .NET build / tooling
+project.lock.json
+project.fragment.lock.json
+.dotnet/
+*.binlog
+msbuild.log
+*.tlog
+*.pdb
+*.mdb
+*.ilk
+*.meta
+*.obj
+*.ipa
+*.apk
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+# Test results / coverage
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+*.vsp
+*.psess
+*.vsps
+
+# Visual Studio / Rider / VS Code
 .vs/
 .vscode/
 .idea/
 *.user
 *.suo
+*.opendb
+*.VC.db
+*.VC.opendb
+launchSettings.json
 
-# Publish output
-publish/
+# ReSharper / JetBrains
+_ReSharper*/
+*.DotSettings.user
+
+# Rider
+*.sln.iml
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
 
 # Local settings
 appsettings.*.Local.json
 local.settings.json
+secrets.json
 
-# OS
-Thumbs.db
-.DS_Store
+# Logs
+*.log
+crash.log
