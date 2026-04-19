@@ -9,6 +9,11 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual retrigger — pick an existing tag as the source ref in the UI
+  # or via `gh workflow run release.yml --ref v0.1.0`. Handy if an earlier
+  # release run failed, or for tags that were pushed before this workflow
+  # existed.
+  workflow_dispatch:
 
 permissions:
   contents: write   # needed to create releases via GITHUB_TOKEN
