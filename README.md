@@ -11,14 +11,27 @@ Click a pill to drill into the top processes driving that metric.
     cd perf-monitor
     dotnet run --project src/PerfMonitor.App
 
-## Build a distributable exe
+## Install
+
+Download the latest `PerfMonitor-v*-setup.exe` from [Releases](../../releases)
+and run it. Installs per-user to `%LOCALAPPDATA%\Programs\PerfMonitor`; no
+admin required. Self-contained — no .NET runtime install needed.
+
+> The installer isn't code-signed yet, so Windows SmartScreen will show
+> "Windows protected your PC" on first download. Click **More info → Run
+> anyway**. Code signing is on the v0.2 roadmap.
+
+## Build locally
 
     ./build.ps1               # default: multi-file self-contained (AV-safe)
     ./build.ps1 -SingleFile   # single ~160 MB bundle (may trigger antivirus)
     ./build.ps1 -FrameworkDependent  # tiny exe, requires .NET 8 runtime installed
 
 Default output: `publish/PerfMonitor.exe` + sibling DLLs (~165 MB folder, no
-runtime install needed on target).
+runtime install needed on target). To build the installer locally:
+
+    ./build.ps1
+    & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DMyAppVersion=0.1.3 scripts\installer.iss
 
 ## Features
 

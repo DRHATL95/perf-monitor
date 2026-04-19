@@ -75,18 +75,29 @@ jobs:
           -p:Version=${{ steps.next.outputs.version }}
           -o publish
 
-      - name: Package ZIP + checksum
+      - name: Build installer (Inno Setup)
         id: package
         shell: pwsh
         run: |
+          $ver = "${{ steps.next.outputs.version }}"
           $tag = "${{ steps.next.outputs.tag }}"
-          $zip = "PerfMonitor-$tag-win-x64.zip"
-          Compress-Archive -Path publish\* -DestinationPath $zip -CompressionLevel Optimal
-          $sha = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
-          "$sha  $zip" | Out-File "$zip.sha256" -Encoding ascii
-          "zip=$zip"             | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "sha256file=$zip.sha256" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "sha256=$sha"          | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { throw "Inno Setup not found at $iscc" }
+
+          & $iscc "/DMyAppVersion=$ver" "scripts\installer.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compile failed" }
+
+          $installer = "PerfMonitor-v$ver-setup.exe"
+          if (!(Test-Path $installer)) { throw "Expected $installer after compile" }
+
+          $sha = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
+          "$sha  $installer" | Out-File "$installer.sha256" -Encoding ascii
+
+          "installer=$installer"           | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "sha256file=$installer.sha256"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "sha256=$sha"                    | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $sizeMB = [math]::Round((Get-Item $installer).Length / 1MB, 1)
+          Write-Host "Built $installer ($sizeMB MB), SHA256: $sha"
 
       - name: Create tag
         shell: bash
@@ -104,13 +115,18 @@ jobs:
           tag_name: ${{ steps.next.outputs.tag }}
           generate_release_notes: true
           body: |
-            **Install:** download `${{ steps.package.outputs.zip }}`, extract, run `PerfMonitor.exe`.
-            No .NET runtime required (self-contained).
+            **Install:** download `${{ steps.package.outputs.installer }}` and run it.
+            Installs per-user to `%LOCALAPPDATA%\Programs\PerfMonitor`; no admin required.
+            Self-contained — no .NET runtime install needed.
+
+            > The installer isn't code-signed, so Windows SmartScreen will show a
+            > "Windows protected your PC" dialog on first download. Click **More info**
+            > then **Run anyway**. Signing is on the v0.2 roadmap.
 
             **Verify:** SHA256 `${{ steps.package.outputs.sha256 }}`
 
             **Requirements:** Windows 10 1903+ for per-process GPU tracking; Windows 11 recommended.
             Admin elevation required only for CPU/GPU temperatures.
           files: |
-            ${{ steps.package.outputs.zip }}
+            ${{ steps.package.outputs.installer }}
             ${{ steps.package.outputs.sha256file }}
