@@ -1,0 +1,93 @@
+name: release
+
+# Triggered by pushing a version tag (e.g. `git push origin v0.2.0`).
+# Builds the app from that tag's commit, bundles the publish folder into a
+# ZIP, computes a SHA256 checksum, and creates a GitHub Release with both
+# attached. Release notes are auto-generated from commit titles since the
+# previous tag.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # needed to create releases via GITHUB_TOKEN
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history so auto-generated release notes can diff
+          # against the previous tag.
+          fetch-depth: 0
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Determine version
+        id: version
+        shell: pwsh
+        run: |
+          # GITHUB_REF is refs/tags/v0.1.0 -> strip to 0.1.0
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag -replace '^v',''
+          "tag=$tag"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "version=$ver"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          # Pre-release if the version contains a hyphen (e.g. 0.2.0-beta.1)
+          $prerelease = if ($ver -match '-') { 'true' } else { 'false' }
+          "prerelease=$prerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Tag: $tag / Version: $ver / Pre-release: $prerelease"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Test
+        run: dotnet test --configuration Release --verbosity minimal
+
+      - name: Publish (multi-file self-contained)
+        run: >
+          dotnet publish src/PerfMonitor.App
+          -c Release -r win-x64 --self-contained
+          -p:Version=${{ steps.version.outputs.version }}
+          -o publish
+
+      - name: Package ZIP
+        id: package
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $zipName = "PerfMonitor-$tag-win-x64.zip"
+          Compress-Archive -Path publish\* -DestinationPath $zipName -CompressionLevel Optimal
+          $sha = (Get-FileHash $zipName -Algorithm SHA256).Hash.ToLower()
+          "$sha  $zipName" | Out-File "$zipName.sha256" -Encoding ascii
+          "zip=$zipName"             | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "sha256file=$zipName.sha256" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "sha256=$sha"              | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Packaged: $zipName ($((Get-Item $zipName).Length / 1MB) MB)"
+          Write-Host "SHA256:   $sha"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PerfMonitor ${{ steps.version.outputs.tag }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          generate_release_notes: true
+          body: |
+            **Install:** download `${{ steps.package.outputs.zip }}`, extract, run `PerfMonitor.exe`.
+            No .NET runtime required (self-contained).
+
+            **Verify:** SHA256 `${{ steps.package.outputs.sha256 }}`
+
+            **Requirements:** Windows 10 1903+ for per-process GPU tracking; Windows 11 recommended.
+            Admin elevation required only for CPU/GPU temperatures.
+
+            See `CHANGELOG` below for changes since the previous release.
+          files: |
+            ${{ steps.package.outputs.zip }}
+            ${{ steps.package.outputs.sha256file }}
