@@ -1,0 +1,113 @@
+name: auto-tag-and-release
+
+# Every push to main: auto-bump the patch version, tag, build, and create
+# a GitHub Release with the publish artifact attached. Manual `v*` tag
+# pushes (for minor/major/pre-release versions) are handled by the
+# separate `release.yml` workflow.
+#
+# Opt out of a bump on a specific commit with `[skip tag]` in the message.
+# For minor/major bumps, push the tag manually and release.yml takes over.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: auto-tag
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag-and-release:
+    runs-on: windows-latest
+    if: "!contains(github.event.head_commit.message, '[skip tag]')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Determine next version
+        id: next
+        shell: bash
+        run: |
+          latest=$(git tag -l 'v*' --sort=-v:refname | head -n1)
+          if [ -z "$latest" ]; then latest="v0.0.0"; fi
+          version=${latest#v}
+          base=${version%%-*}
+          IFS='.' read -r major minor patch <<< "$base"
+          next_patch=$((patch + 1))
+          next="v${major}.${minor}.${next_patch}"
+          next_ver="${major}.${minor}.${next_patch}"
+
+          echo "tag=$next"              >> "$GITHUB_OUTPUT"
+          echo "version=$next_ver"      >> "$GITHUB_OUTPUT"
+          echo "latest_before=$latest"  >> "$GITHUB_OUTPUT"
+          echo "Latest: $latest -> Next: $next"
+
+      - name: Abort if HEAD is already tagged
+        shell: bash
+        run: |
+          existing=$(git tag --points-at HEAD | grep '^v' || true)
+          if [ -n "$existing" ]; then
+            echo "HEAD already tagged as: $existing — refusing to double-tag."
+            exit 1
+          fi
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Test
+        run: dotnet test --configuration Release --verbosity minimal
+
+      - name: Publish (multi-file self-contained)
+        run: >
+          dotnet publish src/PerfMonitor.App
+          -c Release -r win-x64 --self-contained
+          -p:Version=${{ steps.next.outputs.version }}
+          -o publish
+
+      - name: Package ZIP + checksum
+        id: package
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.next.outputs.tag }}"
+          $zip = "PerfMonitor-$tag-win-x64.zip"
+          Compress-Archive -Path publish\* -DestinationPath $zip -CompressionLevel Optimal
+          $sha = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "$sha  $zip" | Out-File "$zip.sha256" -Encoding ascii
+          "zip=$zip"             | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "sha256file=$zip.sha256" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "sha256=$sha"          | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Create tag
+        shell: bash
+        run: |
+          tag="${{ steps.next.outputs.tag }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Auto-tag release $tag"
+          git push origin "$tag"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PerfMonitor ${{ steps.next.outputs.tag }}
+          tag_name: ${{ steps.next.outputs.tag }}
+          generate_release_notes: true
+          body: |
+            **Install:** download `${{ steps.package.outputs.zip }}`, extract, run `PerfMonitor.exe`.
+            No .NET runtime required (self-contained).
+
+            **Verify:** SHA256 `${{ steps.package.outputs.sha256 }}`
+
+            **Requirements:** Windows 10 1903+ for per-process GPU tracking; Windows 11 recommended.
+            Admin elevation required only for CPU/GPU temperatures.
+          files: |
+            ${{ steps.package.outputs.zip }}
+            ${{ steps.package.outputs.sha256file }}
