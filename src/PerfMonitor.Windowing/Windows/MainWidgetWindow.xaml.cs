@@ -24,8 +24,11 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
     private IReadOnlyList<ProcessSnapshot>? _latestProcessSnapshots;
 
     // Edge-trigger tracking for auto-expand on Crit. We only open when
-    // status transitions INTO Crit — not on every tick while it remains Crit.
-    private MetricStatus _lastCpuStatus = MetricStatus.Ok;
+    // status transitions INTO Crit — not on every tick while it remains Crit,
+    // and not on the first sample we receive (which has no "previous" to
+    // transition from). Nullable sentinel: null = no sample observed yet,
+    // so launching into an already-Crit state does NOT auto-expand.
+    private MetricStatus? _lastCpuStatus;
 
     public MainWidgetWindow(MainViewModel vm, IProcessSampler? processSampler = null, INotificationService? notify = null)
     {
@@ -63,9 +66,15 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
                 case nameof(MainViewModel.CpuStatus):
                     CpuPill.Value = $"{_vm.CpuLoadPercent:F0}%";
                     CpuPill.AccentBrush = _vm.CpuStatus == MetricStatus.Crit ? AlertAccent : CpuAccent;
-                    // Edge-triggered auto-expand: !Crit -> Crit, panel closed -> open on CPU.
+                    // Edge-triggered auto-expand: only fire on non-Crit -> Crit
+                    // transition after at least one prior sample. At boot
+                    // (_lastCpuStatus is null) we refuse to auto-expand even if
+                    // the very first sample reports Crit, so launching during
+                    // an already-pegged system doesn't ambush the user with
+                    // an expanded panel.
                     if (_vm.CpuStatus == MetricStatus.Crit
-                        && _lastCpuStatus != MetricStatus.Crit
+                        && _lastCpuStatus is { } prev
+                        && prev != MetricStatus.Crit
                         && _expandedMetric is null)
                     {
                         TogglePanel(ProcessMetric.Cpu);
