@@ -1,3 +1,5 @@
+using PerfMonitor.Core.Metrics;
+
 namespace PerfMonitor.Core.Settings;
 
 public enum DisplayMode
@@ -18,6 +20,14 @@ public record DisplaySettings
     public int RefreshIntervalMs { get; init; } = 1000;
     public string Theme { get; init; } = "Glass";
     public string[] ShowPills { get; init; } = ["Cpu", "Ram", "Gpu", "Net"];
+
+    /// <summary>
+    /// The metric whose process-detail panel was open at last close, or
+    /// null if the panel was collapsed. Restored on launch so users
+    /// monitoring a specific category don't have to re-open the panel
+    /// every session.
+    /// </summary>
+    public ProcessMetric? LastExpandedMetric { get; init; } = null;
 }
 
 public record TraySettings

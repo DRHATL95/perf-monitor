@@ -1,4 +1,5 @@
 using PerfMonitor.Core.Metrics;
+using PerfMonitor.Core.Settings;
 using PerfMonitor.Core.ViewModels;
 using PerfMonitor.Windowing.Controls;
 using System.ComponentModel;
@@ -19,6 +20,7 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
     private readonly MainViewModel _vm;
     private readonly IProcessSampler? _processSampler;
     private readonly INotificationService? _notify;
+    private readonly ISettingsStore? _settingsStore;
 
     private ProcessMetric? _expandedMetric;
     private IReadOnlyList<ProcessSnapshot>? _latestProcessSnapshots;
@@ -30,12 +32,17 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
     // so launching into an already-Crit state does NOT auto-expand.
     private MetricStatus? _lastCpuStatus;
 
-    public MainWidgetWindow(MainViewModel vm, IProcessSampler? processSampler = null, INotificationService? notify = null)
+    public MainWidgetWindow(
+        MainViewModel vm,
+        IProcessSampler? processSampler = null,
+        INotificationService? notify = null,
+        ISettingsStore? settingsStore = null)
     {
         InitializeComponent();
         _vm = vm;
         _processSampler = processSampler;
         _notify = notify;
+        _settingsStore = settingsStore;
         DetailPanel.ProcessKilled += (_, result) =>
             _notify?.Show("PerfMonitor — End task", result.ToToastMessage());
 
@@ -54,6 +61,19 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
             _processSampler.Updated += OnProcessesUpdated;
 
         RefreshAll();
+        RestorePanelStateFromSettings();
+    }
+
+    /// <summary>
+    /// On launch, re-open the panel on whichever metric was open at last
+    /// close. Calling TogglePanel with persist=false avoids a redundant
+    /// settings save (the value being restored is already on disk).
+    /// </summary>
+    private void RestorePanelStateFromSettings()
+    {
+        var saved = _settingsStore?.Load().Display.LastExpandedMetric;
+        if (saved.HasValue)
+            TogglePanel(saved.Value, persist: false);
     }
 
     private void OnVmChanged(object? s, PropertyChangedEventArgs e)
@@ -113,7 +133,12 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
     /// Starts/stops the process sampler to match visibility so we don't
     /// enumerate processes when no one is looking.
     /// </summary>
-    private void TogglePanel(ProcessMetric metric)
+    /// <param name="persist">
+    /// When true (default), saves the new state to settings so the panel
+    /// reopens to the same metric on next launch. Pass false during
+    /// boot-time restore to avoid writing the value we just read.
+    /// </param>
+    private void TogglePanel(ProcessMetric metric, bool persist = true)
     {
         if (_expandedMetric == metric)
         {
@@ -133,6 +158,29 @@ public partial class MainWidgetWindow : Window, IWidgetWindow
             else
                 _processSampler?.Stop();
         }
+
+        if (persist) SavePanelState();
+    }
+
+    /// <summary>
+    /// Persist the current expanded-metric state (or null for collapsed)
+    /// so the next launch can restore it. Called from every user-driven
+    /// TogglePanel; cheap because JsonSettingsStore.Save is a single
+    /// File.WriteAllText.
+    /// </summary>
+    private void SavePanelState()
+    {
+        if (_settingsStore is null) return;
+        try
+        {
+            var current = _settingsStore.Load();
+            if (current.Display.LastExpandedMetric == _expandedMetric) return;
+            _settingsStore.Save(current with
+            {
+                Display = current.Display with { LastExpandedMetric = _expandedMetric }
+            });
+        }
+        catch { /* persistence is best-effort — never fail a click */ }
     }
 
     private void RefreshAll()
