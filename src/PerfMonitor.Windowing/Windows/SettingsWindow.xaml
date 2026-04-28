@@ -53,7 +53,16 @@
             <TabItem Header="About">
                 <StackPanel Margin="8">
                     <TextBlock Text="PerfMonitor" FontSize="18" FontWeight="Bold"/>
-                    <TextBlock Text="Lightweight system performance widget."/>
+                    <TextBlock Margin="0,2,0,0" FontSize="11" Opacity="0.7">
+                        <Run Text="Version "/>
+                        <Run Text="{Binding AppVersion, Mode=OneTime}" FontWeight="SemiBold"/>
+                        <Run Text=" — "/>
+                        <Hyperlink NavigateUri="{Binding ReleaseUrl, Mode=OneTime}"
+                                   RequestNavigate="OnReleaseLinkClicked">
+                            release notes
+                        </Hyperlink>
+                    </TextBlock>
+                    <TextBlock Text="Lightweight system performance widget." Margin="0,10,0,0"/>
                     <TextBlock Text="© David Howard" Margin="0,10,0,0"/>
                 </StackPanel>
             </TabItem>

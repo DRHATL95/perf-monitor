@@ -1,7 +1,9 @@
 using PerfMonitor.Windowing.ViewModels;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Navigation;
 using System.Windows.Threading;
 
 namespace PerfMonitor.Windowing.Windows;
@@ -67,4 +69,19 @@ public partial class SettingsWindow : Window
     }
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
+
+    /// <summary>
+    /// WPF Hyperlink doesn't follow `NavigateUri` automatically — it only
+    /// raises RequestNavigate. We catch it here and shell-launch the URL
+    /// so the user's default browser opens it.
+    /// </summary>
+    private void OnReleaseLinkClicked(object sender, RequestNavigateEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            e.Handled = true;
+        }
+        catch { /* malformed URL or no browser — silent best-effort */ }
+    }
 }
