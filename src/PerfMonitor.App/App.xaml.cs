@@ -84,6 +84,11 @@ public partial class App : Application
                 services.AddSingleton<PerfMonitor.Windowing.INotificationService, Services.TrayNotificationService>();
                 services.AddHostedService<Services.MetricsSampler>();
                 services.AddHostedService<Services.PerfBudgetCheck>();
+                // Singleton + hosted-service-from-singleton so the App layer
+                // can subscribe to UpdateAvailable on the same instance the
+                // host is running.
+                services.AddSingleton<Services.UpdateChecker>();
+                services.AddHostedService(sp => sp.GetRequiredService<Services.UpdateChecker>());
                 services.AddTransient<PerfMonitor.Windowing.ViewModels.SettingsViewModel>();
                 services.AddTransient<PerfMonitor.Windowing.Windows.SettingsWindow>();
             })
@@ -129,7 +134,33 @@ public partial class App : Application
             var win = Services.GetRequiredService<PerfMonitor.Windowing.Windows.SettingsWindow>();
             win.Show();
         };
+        // Open the GitHub release page when the user clicks the tray
+        // "Install update" item. Browser launch via UseShellExecute so the
+        // OS picks the user's default browser.
+        tray.UpdateClicked += (_, url) =>
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch { /* malformed URL or blocked launcher — silent best-effort */ }
+        };
         tray.Show();
+
+        // UpdateChecker fires on a background thread; marshal to UI before
+        // touching the tray menu.
+        var updateChecker = Services.GetRequiredService<Services.UpdateChecker>();
+        updateChecker.UpdateAvailable += (_, info) =>
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                tray.SetUpdateAvailable(info.Tag, info.HtmlUrl);
+                try
+                {
+                    var notify = Services.GetRequiredService<PerfMonitor.Windowing.INotificationService>();
+                    notify.Show("PerfMonitor",
+                        $"Update {info.Tag} available — right-click the tray icon to install.");
+                }
+                catch { /* notify is best-effort */ }
+            });
+        };
 
         ApplyModeBehavior(currentSettings);
 
