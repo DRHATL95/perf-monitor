@@ -84,3 +84,13 @@ Per-process "End task" on elevated targets also needs admin.
 See [`docs/superpowers/specs/2026-04-17-perf-monitor-design.md`](docs/superpowers/specs/2026-04-17-perf-monitor-design.md)
 for the original design. [`CLAUDE.md`](CLAUDE.md) has the current
 source-of-truth conventions.
+
+## Screenshots
+<img width="329" height="69" alt="PerfMonitorOverlay" src="https://github.com/user-attachments/assets/d5fb9487-5edd-4996-bb1d-bf1c038b3df8" />
+
+<img width="71" height="95" alt="PerfMonitorTray" src="https://github.com/user-attachments/assets/317b8b3c-0072-47d9-9e91-5f30a6c97ce2" />
+
+<img width="420" height="352" alt="PerfMonitorSettings" src="https://github.com/user-attachments/assets/00411884-43bb-432d-a9fb-f9ebdcf468ed" />
+
+
+
