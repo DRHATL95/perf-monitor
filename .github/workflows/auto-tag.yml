@@ -21,6 +21,7 @@ permissions:
 jobs:
   tag-and-release:
     runs-on: windows-latest
+    timeout-minutes: 10
     # Opt-out lives at the START of the commit title (e.g. "[skip tag] docs: tweak wording").
     # Using startsWith instead of contains so the token inside commit bodies
     # (e.g. documentation of the opt-out itself) doesn't spuriously match.
