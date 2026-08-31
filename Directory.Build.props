@@ -4,6 +4,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- TreatWarningsAsErrors already promotes NU1903, but NuGet Audit only covers
+         DIRECT packages by default. AuditMode=all extends it to transitives, which is
+         exactly where the gap is: GitHub's dependency graph reads only direct
+         PackageReference entries from .csproj, so transitive advisories never become
+         Dependabot alerts. This repo is clean today; the gate is preventive. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>moderate</NuGetAuditLevel>
     <WarningsAsErrors>nullable</WarningsAsErrors>
     <Version>0.1.0</Version>
     <Authors>David Howard</Authors>
