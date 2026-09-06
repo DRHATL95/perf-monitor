@@ -84,7 +84,7 @@ jobs:
           Write-Host "Built $installer ($((Get-Item $installer).Length / 1MB) MB), SHA256: $sha"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: PerfMonitor ${{ steps.version.outputs.tag }}
           tag_name: ${{ steps.version.outputs.tag }}
