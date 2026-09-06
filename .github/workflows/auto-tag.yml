@@ -110,7 +110,7 @@ jobs:
           git push origin "$tag"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: PerfMonitor ${{ steps.next.outputs.tag }}
           tag_name: ${{ steps.next.outputs.tag }}
